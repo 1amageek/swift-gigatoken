@@ -16,7 +16,8 @@ let package = Package(
   ],
   dependencies: [
     .package(
-      path: "../swift-vector-kernels"
+      url: "https://github.com/1amageek/swift-vector-kernels.git",
+      branch: "main"
     ),
   ],
   targets: [
