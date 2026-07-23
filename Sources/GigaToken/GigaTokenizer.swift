@@ -1,5 +1,5 @@
 import Foundation
-import SwiftGigaTokenCore
+import GigaTokenCore
 
 public struct GigaTokenizer: ~Copyable, TokenEncoding, TokenByteDecoding {
   public let model: BPEModel

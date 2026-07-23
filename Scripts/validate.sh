@@ -7,11 +7,11 @@ cd "$root_directory"
 
 perl -e 'alarm shift; exec @ARGV' 120 \
   xcodebuild test \
-    -scheme swift-gigatoken-Package \
+    -scheme GigaToken-Package \
     -destination 'platform=macOS' \
     -maximum-test-execution-time-allowance 60
 
-swiftly run swift +6.3.1 ++ run -c release swift-gigatoken-smoke
+swiftly run swift +6.3.1 ++ run -c release gigatoken-smoke
 "$root_directory/Scripts/verify-codegen.sh"
 "$root_directory/Scripts/verify-portability.sh"
 

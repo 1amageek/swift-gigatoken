@@ -1,4 +1,4 @@
-# swift-gigatoken
+# GigaToken
 
 Byte-level BPE tokenization with a Pure Swift portable data path for Native,
 WebAssembly, and Embedded Swift, plus compile-time-gated native kernels where
@@ -8,7 +8,7 @@ The current compatibility baseline is `r50k_base`. The package separates the Fou
 
 ```swift
 import Foundation
-import SwiftGigaToken
+import GigaToken
 
 var tokenizer = try GigaTokenizer(r50kModelAt: modelURL)
 let tokens = try tokenizer.encodeOrdinary("Hello, world!")
@@ -19,15 +19,15 @@ let text = try tokenizer.decode(tokens)
 
 ```bash
 swiftly run swift +6.3.1 ++ build
-swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm --target SwiftGigaTokenCore
-swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm-embedded --target SwiftGigaTokenCore
-swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm swift-gigatoken-smoke
-swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm-embedded swift-gigatoken-smoke
+swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm --target GigaTokenCore
+swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm-embedded --target GigaTokenCore
+swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm gigatoken-smoke
+swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm-embedded gigatoken-smoke
 ```
 
-`SwiftGigaTokenCore` accepts rank-ordered token bytes directly, so Wasm and
+`GigaTokenCore` accepts rank-ordered token bytes directly, so Wasm and
 Embedded Swift applications can embed model tables without Foundation, JSON,
-Base64, filesystem APIs, or Rust. The `SwiftGigaToken` host target parses the
+Base64, filesystem APIs, or Rust. The `GigaToken` host target parses the
 standard `.tiktoken` text format when Foundation is available.
 
 The tokenizer's public API, storage ownership, BPE logic, and portable hash are
@@ -43,7 +43,7 @@ The performance API borrows the input storage and writes directly into a
 move-only, caller-owned token allocation:
 
 ```swift
-import SwiftGigaTokenCore
+import GigaTokenCore
 
 var encoder = BPEEncoder(model: model)
 var output = TokenBuffer(minimumCapacity: input.count / 3)

@@ -1,9 +1,9 @@
 import Foundation
-import SwiftGigaToken
-import SwiftGigaTokenCore
+import GigaToken
+import GigaTokenCore
 
 @main
-struct SwiftGigaTokenBenchmark {
+struct GigaTokenBenchmark {
   static func main() throws {
     let options = try BenchmarkOptions(arguments: Array(CommandLine.arguments.dropFirst()))
     let modelURL = URL(fileURLWithPath: options.modelPath)
@@ -38,7 +38,7 @@ struct SwiftGigaTokenBenchmark {
     let warmSeconds = warmDurations[warmDurations.count / 2]
     let storageMetrics = tokenizer.storageMetrics
     let result = BenchmarkResult(
-      implementation: "swift-gigatoken",
+      implementation: "gigatoken",
       bytes: input.count,
       tokens: tokens.count,
       tokenChecksum: tokens.withUnsafeBufferPointer(tokenChecksum),

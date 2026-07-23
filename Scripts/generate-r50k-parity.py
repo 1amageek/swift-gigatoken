@@ -8,7 +8,7 @@ from tiktoken.load import load_tiktoken_bpe
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "Tests/SwiftGigaTokenTests/Fixtures"
+FIXTURES = ROOT / "Tests/GigaTokenTests/Fixtures"
 MODEL = FIXTURES / "r50k_base.tiktoken"
 CORPUS = FIXTURES / "r50k_parity.json"
 PATTERN = r"'(?:s|t|re|ve|m|ll|d)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"
@@ -20,7 +20,7 @@ def main() -> None:
     arguments = parser.parse_args()
     fixtures = json.loads(CORPUS.read_text())
     encoding = tiktoken.Encoding(
-        name="swift-gigatoken-r50k-parity",
+        name="gigatoken-r50k-parity",
         pat_str=PATTERN,
         mergeable_ranks=load_tiktoken_bpe(str(MODEL)),
         special_tokens={"<|endoftext|>": 50256},

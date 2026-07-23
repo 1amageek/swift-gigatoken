@@ -1,6 +1,6 @@
 import Testing
 
-@testable import SwiftGigaTokenCore
+@testable import GigaTokenCore
 
 @Suite("Long pretoken cache")
 struct LongPretokenCacheTests {

@@ -1,6 +1,6 @@
-# swift-gigatoken architecture
+# GigaToken architecture
 
-`swift-gigatoken` implements the public API, ownership model, pretokenization,
+`GigaToken` implements the public API, ownership model, pretokenization,
 and BPE algorithm in Swift. A minimal optional C intrinsic boundary emits
 architecture-specific instructions. Rust is used only as an external
 correctness and benchmark reference.
@@ -24,11 +24,11 @@ borrowed input bytes ───────────────────�
 
 ## Target boundaries
 
-- `SwiftGigaTokenCore` contains the source-of-truth algorithm and depends on
+- `GigaTokenCore` contains the source-of-truth algorithm and depends on
   `VectorKernels` plus its capability-gated `VectorKernelsNative` instruction
   target.
-- `SwiftGigaToken` owns host conveniences such as Foundation file loading and `.tiktoken` Base64 parsing.
-- `SwiftGigaTokenBenchmark` measures model construction, cold encoding, and warm encoding independently.
+- `GigaToken` owns host conveniences such as Foundation file loading and `.tiktoken` Base64 parsing.
+- `GigaTokenBenchmark` measures model construction, cold encoding, and warm encoding independently.
 
 ## Storage and ownership contract
 

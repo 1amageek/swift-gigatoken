@@ -7,7 +7,7 @@ import regex
 
 PINNED_REGEX_VERSION = "2026.4.4"
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "Sources/SwiftGigaTokenCore/UnicodeClassTable.swift"
+OUTPUT = ROOT / "Sources/GigaTokenCore/UnicodeClassTable.swift"
 
 
 def ranges_for(pattern: regex.Pattern[str]) -> list[tuple[int, int]]:

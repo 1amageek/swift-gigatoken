@@ -1,7 +1,7 @@
-import SwiftGigaTokenCore
+import GigaTokenCore
 
 @main
-struct SwiftGigaTokenSmoke {
+struct GigaTokenSmoke {
   static func main() {
     do {
       var vocabulary = (0...255).map { [UInt8($0)] }

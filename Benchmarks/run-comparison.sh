@@ -20,7 +20,7 @@ mkdir -p "$results_dir"
 swiftly run swift +6.3.1 ++ build \
     --package-path "$package_root" \
     -c release \
-    --product swift-gigatoken-benchmark
+    --product gigatoken-benchmark
 swift_bin_path=$(swiftly run swift +6.3.1 ++ build \
     --package-path "$package_root" \
     -c release \
@@ -31,7 +31,7 @@ CARGO_TARGET_DIR="$package_root/.build/rust-reference" \
       --release \
       --manifest-path "$package_root/Benchmarks/RustReference/Cargo.toml"
 
-swift_binary="$swift_bin_path/swift-gigatoken-benchmark"
+swift_binary="$swift_bin_path/gigatoken-benchmark"
 rust_binary="$package_root/.build/rust-reference/release/gigatoken-rust-reference-benchmark"
 
 record() {

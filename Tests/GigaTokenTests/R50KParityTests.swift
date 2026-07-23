@@ -1,8 +1,8 @@
 import Foundation
-import SwiftGigaTokenCore
+import GigaTokenCore
 import Testing
 
-@testable import SwiftGigaToken
+@testable import GigaToken
 
 @Suite("r50k parity")
 struct R50KParityTests {

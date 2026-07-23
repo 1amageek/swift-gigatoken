@@ -9,9 +9,9 @@ if [[ "$(uname -m)" != "arm64" ]]; then
 fi
 
 cd "$root_directory"
-swiftly run swift +6.3.1 ++ build -c release --product swift-gigatoken-benchmark
+swiftly run swift +6.3.1 ++ build -c release --product gigatoken-benchmark
 binary_path=$(swiftly run swift +6.3.1 ++ build -c release --show-bin-path)
-binary="$binary_path/swift-gigatoken-benchmark"
+binary="$binary_path/gigatoken-benchmark"
 fill_symbol=$(
   llvm-nm "$binary" \
     | awk '/R50KPretokenizerV17fillPretokenBatch/ && !found { print $3; found = 1 }'

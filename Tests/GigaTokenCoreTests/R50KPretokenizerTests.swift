@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import SwiftGigaTokenCore
+@testable import GigaTokenCore
 
 private let externalCorpusPath: String? = {
   guard let path = ProcessInfo.processInfo.environment["GIGATOKEN_CORPUS"] else {

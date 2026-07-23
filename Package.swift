@@ -3,16 +3,16 @@
 import PackageDescription
 
 let package = Package(
-  name: "swift-gigatoken",
+  name: "GigaToken",
   platforms: [
     .macOS(.v26),
     .iOS(.v26),
   ],
   products: [
-    .library(name: "SwiftGigaTokenCore", targets: ["SwiftGigaTokenCore"]),
-    .library(name: "SwiftGigaToken", targets: ["SwiftGigaToken"]),
-    .executable(name: "swift-gigatoken-smoke", targets: ["SwiftGigaTokenSmoke"]),
-    .executable(name: "swift-gigatoken-benchmark", targets: ["SwiftGigaTokenBenchmark"]),
+    .library(name: "GigaTokenCore", targets: ["GigaTokenCore"]),
+    .library(name: "GigaToken", targets: ["GigaToken"]),
+    .executable(name: "gigatoken-smoke", targets: ["GigaTokenSmoke"]),
+    .executable(name: "gigatoken-benchmark", targets: ["GigaTokenBenchmark"]),
   ],
   dependencies: [
     .package(
@@ -21,31 +21,31 @@ let package = Package(
   ],
   targets: [
     .target(
-      name: "SwiftGigaTokenCore",
+      name: "GigaTokenCore",
       dependencies: [
         .product(name: "VectorKernels", package: "swift-vector-kernels"),
         .product(name: "VectorKernelsNative", package: "swift-vector-kernels"),
       ]
     ),
     .target(
-      name: "SwiftGigaToken",
-      dependencies: ["SwiftGigaTokenCore"]
+      name: "GigaToken",
+      dependencies: ["GigaTokenCore"]
     ),
     .executableTarget(
-      name: "SwiftGigaTokenSmoke",
-      dependencies: ["SwiftGigaTokenCore"]
+      name: "GigaTokenSmoke",
+      dependencies: ["GigaTokenCore"]
     ),
     .executableTarget(
-      name: "SwiftGigaTokenBenchmark",
-      dependencies: ["SwiftGigaToken", "SwiftGigaTokenCore"]
+      name: "GigaTokenBenchmark",
+      dependencies: ["GigaToken", "GigaTokenCore"]
     ),
     .testTarget(
-      name: "SwiftGigaTokenCoreTests",
-      dependencies: ["SwiftGigaTokenCore"]
+      name: "GigaTokenCoreTests",
+      dependencies: ["GigaTokenCore"]
     ),
     .testTarget(
-      name: "SwiftGigaTokenTests",
-      dependencies: ["SwiftGigaToken", "SwiftGigaTokenCore"],
+      name: "GigaTokenTests",
+      dependencies: ["GigaToken", "GigaTokenCore"],
       resources: [.copy("Fixtures")]
     ),
   ]

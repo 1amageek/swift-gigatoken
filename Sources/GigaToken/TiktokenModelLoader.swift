@@ -1,5 +1,5 @@
 import Foundation
-import SwiftGigaTokenCore
+import GigaTokenCore
 
 public struct TiktokenModelLoader: TiktokenModelLoading, Sendable {
   private let addedTokens: [SpecialToken]

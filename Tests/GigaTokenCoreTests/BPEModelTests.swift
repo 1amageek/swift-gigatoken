@@ -1,6 +1,6 @@
 import Testing
 
-@testable import SwiftGigaTokenCore
+@testable import GigaTokenCore
 
 @Suite("BPE model")
 struct BPEModelTests {
