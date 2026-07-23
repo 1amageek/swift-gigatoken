@@ -1,6 +1,6 @@
-# GigaToken architecture
+# swift-gigatoken architecture
 
-`GigaToken` implements the public API, ownership model, pretokenization,
+`swift-gigatoken` implements the public API, ownership model, pretokenization,
 and BPE algorithm in Swift. A minimal optional C intrinsic boundary emits
 architecture-specific instructions. Rust is used only as an external
 correctness and benchmark reference.

@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "GigaToken",
+  name: "swift-gigatoken",
   platforms: [
     .macOS(.v26),
     .iOS(.v26),

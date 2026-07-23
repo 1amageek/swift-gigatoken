@@ -7,7 +7,7 @@ cd "$root_directory"
 
 perl -e 'alarm shift; exec @ARGV' 120 \
   xcodebuild test \
-    -scheme GigaToken-Package \
+    -scheme swift-gigatoken-Package \
     -destination 'platform=macOS' \
     -maximum-test-execution-time-allowance 60
 

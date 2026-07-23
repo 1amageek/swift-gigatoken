@@ -1,4 +1,4 @@
-# GigaToken
+# swift-gigatoken
 
 Byte-level BPE tokenization with a Pure Swift portable data path for Native,
 WebAssembly, and Embedded Swift, plus compile-time-gated native kernels where

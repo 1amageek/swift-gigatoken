@@ -20,7 +20,7 @@ def main() -> None:
     arguments = parser.parse_args()
     fixtures = json.loads(CORPUS.read_text())
     encoding = tiktoken.Encoding(
-        name="gigatoken-r50k-parity",
+        name="swift-gigatoken-r50k-parity",
         pat_str=PATTERN,
         mergeable_ranks=load_tiktoken_bpe(str(MODEL)),
         special_tokens={"<|endoftext|>": 50256},

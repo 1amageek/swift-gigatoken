@@ -38,7 +38,7 @@ struct GigaTokenBenchmark {
     let warmSeconds = warmDurations[warmDurations.count / 2]
     let storageMetrics = tokenizer.storageMetrics
     let result = BenchmarkResult(
-      implementation: "gigatoken",
+      implementation: "swift-gigatoken",
       bytes: input.count,
       tokens: tokens.count,
       tokenChecksum: tokens.withUnsafeBufferPointer(tokenChecksum),
