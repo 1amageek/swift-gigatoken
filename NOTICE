@@ -1,0 +1,7 @@
+swift-gigatoken is an independent Pure Swift implementation informed by the
+MIT-licensed gigatoken project by Marcel Roed:
+https://github.com/marcelroed/gigatoken
+
+The r50k_base compatibility fixture originates from OpenAI's public tiktoken
+model data. Its source URL and SHA-256 digest are documented in the test suite
+and README.

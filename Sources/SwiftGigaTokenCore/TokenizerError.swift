@@ -1,0 +1,22 @@
+public enum TokenizerError: Error, Equatable, Sendable {
+  case emptyVocabulary
+  case vocabularyTooLarge(count: Int)
+  case modelStorageTooLarge(byteCount: UInt64)
+  case invalidTokenOffsets(index: Int)
+  case emptyToken(id: TokenID)
+  case missingSingleByteToken(byte: UInt8)
+  case duplicateToken(bytes: [UInt8], first: TokenID, duplicate: TokenID)
+  case invalidMerge(token: TokenID, remainingSymbols: Int)
+  case duplicateMerge(left: TokenID, right: TokenID)
+  case emptySpecialToken(id: TokenID)
+  case duplicateSpecialTokenBytes(bytes: [UInt8])
+  case duplicateSpecialTokenID(id: TokenID)
+  case specialTokenIDCollidesWithVocabulary(id: TokenID)
+  case invalidUTF8(offset: Int)
+  case disallowedSpecialToken(id: TokenID)
+  case unknownToken(id: TokenID)
+  case invalidModelLine(line: Int)
+  case invalidBase64(line: Int)
+  case nonDenseRank(expected: UInt32, actual: UInt32, line: Int)
+  case unreadableModel(path: String)
+}

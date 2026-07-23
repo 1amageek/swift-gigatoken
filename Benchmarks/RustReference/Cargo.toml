@@ -1,0 +1,12 @@
+[package]
+name = "gigatoken-rust-reference-benchmark"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+gigatoken = { git = "https://github.com/marcelroed/gigatoken", rev = "542367a3efed134883fb4f1140b49c04e6fad3a3" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1

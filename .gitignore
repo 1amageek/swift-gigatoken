@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+benchmark-results/
+Benchmarks/RustReference/target/
+.DS_Store
+/*.bc
