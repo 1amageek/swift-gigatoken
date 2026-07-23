@@ -52,5 +52,14 @@ if ! grep -q 'prfm[[:space:]]*pldl2keep' <<<"$fill_assembly"; then
   echo "native-codegen: L2 cache prefetch was not fused into the fill loop" >&2
   exit 1
 fi
+crc32_count=$(grep -c 'crc32x' <<<"$fill_assembly")
+if (( crc32_count < 2 || crc32_count % 2 != 0 )); then
+  echo "native-codegen: paired ARM CRC32 hash instructions were not found" >&2
+  exit 1
+fi
+if grep -Eq 'bl[[:space:]].*(ARMCRC32|vector_kernels_crc32)' <<<"$fill_assembly"; then
+  echo "native-codegen: ARM CRC32 hash retained a function call" >&2
+  exit 1
+fi
 
-echo "native-codegen: NEON boundary scan and L2 prefetch verified without mask aggregation"
+echo "native-codegen: NEON scan, L2 prefetch, and inlined ARM CRC32 hash verified"

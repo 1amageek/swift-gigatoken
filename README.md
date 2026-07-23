@@ -1,6 +1,8 @@
 # swift-gigatoken
 
-Pure Swift byte-level BPE tokenization for Native, WebAssembly, and Embedded Swift.
+Byte-level BPE tokenization with a Pure Swift portable data path for Native,
+WebAssembly, and Embedded Swift, plus compile-time-gated native kernels where
+the target contract guarantees the required instructions.
 
 The current compatibility baseline is `r50k_base`. The package separates the Foundation-free tokenizer core from host model loading and benchmarking.
 
@@ -27,6 +29,13 @@ swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm-embedded sw
 Embedded Swift applications can embed model tables without Foundation, JSON,
 Base64, filesystem APIs, or Rust. The `SwiftGigaToken` host target parses the
 standard `.tiktoken` text format when Foundation is available.
+
+The tokenizer's public API, storage ownership, BPE logic, and portable hash are
+Pure Swift. On ARM64 targets whose platform contract guarantees CRC32,
+`VectorKernelsNative` contributes only the two-instruction cache-hash primitive.
+On macOS, release codegen validation requires those intrinsics to inline into
+the Swift hot loop. Other ARM64 targets use the same two-instruction kernel
+behind one C ABI call. Targets without CRC32 use the Pure Swift pair hash.
 
 ## Low-level data path
 

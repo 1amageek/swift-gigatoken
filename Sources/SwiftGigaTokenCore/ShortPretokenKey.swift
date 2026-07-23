@@ -1,3 +1,8 @@
+import VectorKernels
+#if arch(arm64)
+  import VectorKernelsNative
+#endif
+
 struct ShortPretokenKey: Equatable, Sendable {
   let low: UInt64
   let high: UInt64
@@ -56,20 +61,20 @@ struct ShortPretokenKey: Equatable, Sendable {
 
   @_transparent
   var hash: UInt64 {
-    var value = low ^ high.rotatedRight(25)
-    value &*= 0x9E37_79B9_7F4A_7C15
-    return value ^ (value >> 32)
+    #if arch(arm64) && canImport(Darwin) && !hasFeature(Embedded)
+      return ARMCRC32UInt64PairHashKernel.hash(low: low, high: high)
+    #else
+      #if arch(arm64)
+        if ARMCRC32UInt64PairHashKernel.isAvailable {
+          return ARMCRC32UInt64PairHashKernel.hash(low: low, high: high)
+        }
+      #endif
+      return MultiplicativeUInt64PairHashKernel.hash(low: low, high: high)
+    #endif
   }
 
   @_transparent
   private static func byteMask(count: Int) -> UInt64 {
     count == 8 ? UInt64.max : (UInt64(1) << UInt64(count * 8)) &- 1
-  }
-}
-
-extension UInt64 {
-  @inline(__always)
-  fileprivate func rotatedRight(_ count: UInt64) -> UInt64 {
-    (self >> count) | (self << (64 - count))
   }
 }

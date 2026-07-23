@@ -24,6 +24,7 @@ let package = Package(
       name: "SwiftGigaTokenCore",
       dependencies: [
         .product(name: "VectorKernels", package: "swift-vector-kernels"),
+        .product(name: "VectorKernelsNative", package: "swift-vector-kernels"),
       ]
     ),
     .target(

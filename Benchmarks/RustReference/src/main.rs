@@ -18,15 +18,16 @@ fn main() {
     black_box(&output);
     let cold_seconds = cold_start.elapsed().as_secs_f64();
 
-    let mut total_warm_seconds = 0.0;
+    let mut warm_durations = Vec::with_capacity(options.iterations);
     for _ in 0..options.iterations {
         output.clear();
         let start = Instant::now();
         tokenizer.encode_with_added_tokens_flat(&input, &mut output);
         black_box(&output);
-        total_warm_seconds += start.elapsed().as_secs_f64();
+        warm_durations.push(start.elapsed().as_secs_f64());
     }
-    let warm_seconds = total_warm_seconds / options.iterations as f64;
+    warm_durations.sort_by(f64::total_cmp);
+    let warm_seconds = warm_durations[warm_durations.len() / 2];
     let bytes = input.len();
     let token_checksum = token_checksum(&output);
     println!(
@@ -40,7 +41,7 @@ fn main() {
             "  \"modelBuildSeconds\": {model_seconds},\n",
             "  \"tokens\": {tokens},\n",
             "  \"tokenChecksum\": \"{token_checksum}\",\n",
-            "  \"warmMeanSeconds\": {warm_seconds},\n",
+            "  \"warmMedianSeconds\": {warm_seconds},\n",
             "  \"warmMegabytesPerSecond\": {warm_mbps}\n",
             "}}"
         ),

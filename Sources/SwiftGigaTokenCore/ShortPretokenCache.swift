@@ -1,7 +1,4 @@
 import VectorKernels
-#if arch(arm64) && canImport(Darwin) && !hasFeature(Embedded)
-  import Synchronization
-#endif
 
 struct PackedTokenValue: Sendable {
   private static let spillFlag: UInt64 = 0x80
@@ -65,14 +62,7 @@ struct PackedTokenValue: Sendable {
 
 private struct ShortPretokenCacheBucket: ~Copyable {
   var keys = SIMD4<UInt64>(repeating: 0)
-  #if arch(arm64) && canImport(Darwin) && !hasFeature(Embedded)
-    let value0 = Atomic<UInt64>(0)
-    let value1 = Atomic<UInt64>(0)
-    let value2 = Atomic<UInt64>(0)
-    let value3 = Atomic<UInt64>(0)
-  #else
-    var packedValues = SIMD4<UInt64>(repeating: 0)
-  #endif
+  var packedValues = SIMD4<UInt64>(repeating: 0)
 }
 
 @usableFromInline
@@ -304,16 +294,7 @@ struct ShortPretokenCache: ~Copyable {
     from bucket: borrowing ShortPretokenCacheBucket,
     at index: Int
   ) -> UInt64 {
-    #if arch(arm64) && canImport(Darwin) && !hasFeature(Embedded)
-      switch index {
-      case 0: bucket.value0.load(ordering: .relaxed)
-      case 1: bucket.value1.load(ordering: .relaxed)
-      case 2: bucket.value2.load(ordering: .relaxed)
-      default: bucket.value3.load(ordering: .relaxed)
-      }
-    #else
-      bucket.packedValues[index]
-    #endif
+    bucket.packedValues[index]
   }
 
   @inline(__always)
@@ -322,16 +303,7 @@ struct ShortPretokenCache: ~Copyable {
     in bucket: UnsafeMutablePointer<ShortPretokenCacheBucket>,
     at index: Int
   ) {
-    #if arch(arm64) && canImport(Darwin) && !hasFeature(Embedded)
-      switch index {
-      case 0: bucket.pointee.value0.store(value, ordering: .relaxed)
-      case 1: bucket.pointee.value1.store(value, ordering: .relaxed)
-      case 2: bucket.pointee.value2.store(value, ordering: .relaxed)
-      default: bucket.pointee.value3.store(value, ordering: .relaxed)
-      }
-    #else
-      bucket.pointee.packedValues[index] = value
-    #endif
+    bucket.pointee.packedValues[index] = value
   }
 }
 
@@ -376,22 +348,11 @@ struct ShortPretokenProbeView {
     let keys = bucket.pointee.keys
     let firstMask = Self.zeroMask((keys[0] ^ low) | (keys[1] ^ high))
     let secondMask = Self.zeroMask((keys[2] ^ low) | (keys[3] ^ high))
-    #if arch(arm64) && canImport(Darwin) && !hasFeature(Embedded)
-      // Relaxed loads intentionally preserve four independent value loads.
-      // Ordinary loads are folded into a selected address and a dependent load.
-      let firstValue = bucket.pointee.value0.load(ordering: .relaxed)
-      let firstExtension = bucket.pointee.value1.load(ordering: .relaxed)
-      let secondValue = bucket.pointee.value2.load(ordering: .relaxed)
-      let secondExtension = bucket.pointee.value3.load(ordering: .relaxed)
-      let selectedValue = (firstValue & firstMask) | (secondValue & ~firstMask)
-      let selectedExtension = (firstExtension & firstMask) | (secondExtension & ~firstMask)
-    #else
-      let packedValues = bucket.pointee.packedValues
-      let selectedValue =
-        (packedValues[0] & firstMask) | (packedValues[2] & ~firstMask)
-      let selectedExtension =
-        (packedValues[1] & firstMask) | (packedValues[3] & ~firstMask)
-    #endif
+    let packedValues = bucket.pointee.packedValues
+    let selectedValue =
+      (packedValues[0] & firstMask) | (packedValues[2] & ~firstMask)
+    let selectedExtension =
+      (packedValues[1] & firstMask) | (packedValues[3] & ~firstMask)
     return ShortPretokenProbeResult(
       value: PackedTokenValue(
         value: selectedValue,

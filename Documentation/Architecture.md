@@ -1,6 +1,9 @@
 # swift-gigatoken architecture
 
-`swift-gigatoken` implements byte-level BPE entirely in Swift. Rust is used only as an external correctness and benchmark reference.
+`swift-gigatoken` implements the public API, ownership model, pretokenization,
+and BPE algorithm in Swift. A minimal optional C intrinsic boundary emits
+architecture-specific instructions. Rust is used only as an external
+correctness and benchmark reference.
 
 ```text
 mapped .tiktoken bytes (host only)
@@ -10,7 +13,10 @@ packed token bytes + UInt32 offsets ──→ BPEModel
                                          │ immutable pair-rank table
 borrowed input bytes ─────────────────────┤
                                          ▼
-                              R50K scan → short-key cache → BPE
+                              R50K scan → pair hash → short-key cache → BPE
+                                             │
+                                             ├─ Pure Swift portable hash
+                                             └─ ARM CRC32 native hash
                                          │
                                          ▼
                               caller-owned TokenBuffer
@@ -18,7 +24,9 @@ borrowed input bytes ───────────────────�
 
 ## Target boundaries
 
-- `SwiftGigaTokenCore` depends only on the Swift standard library. It is the source of truth for Native, Wasm, and Embedded Swift builds.
+- `SwiftGigaTokenCore` contains the source-of-truth algorithm and depends on
+  `VectorKernels` plus its capability-gated `VectorKernelsNative` instruction
+  target.
 - `SwiftGigaToken` owns host conveniences such as Foundation file loading and `.tiktoken` Base64 parsing.
 - `SwiftGigaTokenBenchmark` measures model construction, cold encoding, and warm encoding independently.
 
@@ -57,12 +65,18 @@ silently accepted when a check differs.
 
 ## Portability contract
 
-The core does not use Foundation, filesystem APIs, OS threads, memory mapping,
-or foreign-language implementations. Host model parsing remains outside the
+The portable path does not use Foundation, filesystem APIs, OS threads, memory
+mapping, or foreign-language algorithms. Host model parsing remains outside the
 core. Wasm and Embedded Swift callers can provide packed token storage and
 offsets directly to `BPEModel`, allowing model data to be embedded without
 runtime JSON or Base64 parsing. Platform-specific alignment is disabled on
 wasm32 while the same tokenizer semantics and typed failures remain active.
+
+The native module is an instruction-emission shim, not a second tokenizer
+implementation. On ARM64 it uses the SDK target's CRC32 capability constant; on
+Wasm and Embedded-Wasm it is inert and the Pure Swift multiplicative hash is
+selected. The hash affects only cache placement, so token IDs and errors remain
+backend-independent.
 
 ## ML runtime interoperability contract
 

@@ -42,7 +42,7 @@ record() {
     "$binary" \
       --model "$model_path" \
       --input "$input_path" \
-      --iterations 5 \
+      --iterations 31 \
       > "$result_path"
     sed -n 's/.*"warmMegabytesPerSecond" *: *\([0-9.]*\).*/\1/p' \
       "$result_path" >> "$sample_path"

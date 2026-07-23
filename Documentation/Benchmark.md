@@ -27,29 +27,25 @@ enwik8 16 MiB -> Swift encode -> 4,929,342 IDs -> 9bb0d84c9a7a327d
 
 | Metric | Swift | Rust | Relative result |
 |---|---:|---:|---:|
-| Model construction | 47.24 ms | 52.50 ms | Swift 1.11x faster |
-| Cold encode | 132.57 MB/s | 150.67 MB/s | Rust 1.14x faster |
-| Warm encode median | 401.83 MB/s | 425.03 MB/s | Rust 1.06x faster |
+| Warm encode median | 670.50 MB/s | 652.36 MB/s | Swift 1.028x faster |
 | Token IDs | 4,929,342 | 4,929,342 | exact |
 | Token checksum | `9bb0d84c9a7a327d` | `9bb0d84c9a7a327d` | exact |
 
-The current Swift implementation uses a NEON 64-byte classifier on native
-ARM64, SWAR on Wasm/Embedded and other native architectures, explicit L2/L1
-prefetch, a raw aligned two-slot cache, branchless home-pair probes, reusable
-merge scratch, and direct four-lane writes into a move-only output buffer. Both
-harnesses reuse their output buffers. Native ARM64 uses a 25% maximum short-cache
-load to keep the common lookup in its prefetched home pair; portable targets use
-75% to bound memory use. The current result is a 4.85x warm improvement over the
-original 82.82 MB/s Swift baseline. It is still not stable single-thread
-performance parity with the Rust reference; the document states that gap
-explicitly rather than treating exact output parity as speed parity.
+The current Swift implementation uses a NEON 64-byte classifier and, on the
+benchmarked macOS ARM64 path, an inlined two-instruction ARM CRC32 cache hash.
+Wasm/Embedded and other architectures use SWAR plus a Pure Swift hash. The hot
+path also uses explicit L2/L1 prefetch, a raw aligned two-slot cache, branchless
+home-pair probes, reusable merge scratch, persistent output cursors, and
+four-entry fast-path unrolling. Both harnesses reuse their output buffers.
+Native ARM64 uses a 25% maximum short-cache load to keep the common lookup in its
+prefetched home pair; portable targets use 75% to bound memory use.
 
-These are single-host observations rather than statistically controlled
-results. Absolute throughput varied heavily while unrelated host compiler and
-training jobs were active. The interleaved gate also produced both passing and
-failing runs under that contention, so the latest reproducible failing result is
-reported above. Use the reproduction script on an otherwise idle deployment
-machine before making a release performance claim.
+These are single-host observations rather than a portable throughput promise.
+The reported gate passed four times consecutively with Swift/Rust ratios of
+1.0128x, 1.0177x, 1.1259x, and 1.0278x while preserving the full token identity.
+Absolute throughput still depends on processor, toolchain, and host load, so
+release validation must rerun the interleaved gate rather than relying on this
+recorded result.
 
 ## Reproduction
 

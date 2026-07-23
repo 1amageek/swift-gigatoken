@@ -34,7 +34,8 @@ struct SwiftGigaTokenBenchmark {
     }
 
     let coldSeconds = coldDuration
-    let warmSeconds = warmDurations.reduce(0, +) / Double(warmDurations.count)
+    warmDurations.sort()
+    let warmSeconds = warmDurations[warmDurations.count / 2]
     let storageMetrics = tokenizer.storageMetrics
     let result = BenchmarkResult(
       implementation: "swift-gigatoken",
@@ -44,7 +45,7 @@ struct SwiftGigaTokenBenchmark {
       modelBuildSeconds: modelDuration,
       coldSeconds: coldSeconds,
       coldMegabytesPerSecond: Double(input.count) / coldSeconds / 1_000_000,
-      warmMeanSeconds: warmSeconds,
+      warmMedianSeconds: warmSeconds,
       warmMegabytesPerSecond: Double(input.count) / warmSeconds / 1_000_000,
       iterations: options.iterations,
       shortCacheEntryCount: storageMetrics.shortCacheEntryCount,
@@ -120,7 +121,7 @@ private struct BenchmarkResult: Encodable {
   let modelBuildSeconds: Double
   let coldSeconds: Double
   let coldMegabytesPerSecond: Double
-  let warmMeanSeconds: Double
+  let warmMedianSeconds: Double
   let warmMegabytesPerSecond: Double
   let iterations: Int
   let shortCacheEntryCount: Int
