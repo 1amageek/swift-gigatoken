@@ -4,6 +4,15 @@ Byte-level BPE tokenization with a Pure Swift portable data path for Native,
 WebAssembly, and Embedded Swift, plus compile-time-gated native kernels where
 the target contract guarantees the required instructions.
 
+## Acknowledgements
+
+This project is an independent Swift implementation inspired by
+[`gigatoken`](https://github.com/marcelroed/gigatoken), created by
+[Marcel Roed](https://github.com/marcelroed). The original project established
+the `gigatoken` name and demonstrated high-throughput language-model
+tokenization. `swift-gigatoken` exists because of that work, and references to
+this implementation's lineage should credit the original project and author.
+
 The current compatibility baseline is `r50k_base`. The package separates the Foundation-free tokenizer core from host model loading and benchmarking.
 
 ```swift

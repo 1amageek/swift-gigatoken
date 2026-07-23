@@ -19,7 +19,7 @@ enwik8 16 MiB -> Swift encode -> 4,929,342 IDs -> 9bb0d84c9a7a327d
 | OS | macOS 27.0 (26A5378n) |
 | Swift | 6.3.1 RELEASE |
 | Rust | nightly 1.99.0 (2026-07-21) |
-| Rust reference | gigatoken 0.9.0, commit `542367a3efed134883fb4f1140b49c04e6fad3a3` |
+| Rust reference | [gigatoken](https://github.com/marcelroed/gigatoken) 0.9.0 by [Marcel Roed](https://github.com/marcelroed), commit `542367a3efed134883fb4f1140b49c04e6fad3a3` |
 | Model | `r50k_base.tiktoken`, SHA-256 `306cd27f03c1a714eca7108e03d66b7dc042abe8c258b44c199a7ed9838dd930` |
 | Input | first 16 MiB of `enwik8`, SHA-256 `e6d287b341ea0dc183fb334ae05e558df4540752bf2be88da9570338fa711585` |
 
@@ -39,6 +39,10 @@ home-pair probes, reusable merge scratch, persistent output cursors, and
 four-entry fast-path unrolling. Both harnesses reuse their output buffers.
 Native ARM64 uses a 25% maximum short-cache load to keep the common lookup in its
 prefetched home pair; portable targets use 75% to bound memory use.
+
+This comparison measures compatibility and performance against the original
+project. It does not imply authorship of, affiliation with, or endorsement by
+the original author.
 
 These are single-host observations rather than a portable throughput promise.
 The reported gate passed four times consecutively with Swift/Rust ratios of

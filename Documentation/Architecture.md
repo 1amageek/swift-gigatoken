@@ -1,9 +1,11 @@
 # swift-gigatoken architecture
 
-`swift-gigatoken` implements the public API, ownership model, pretokenization,
-and BPE algorithm in Swift. A minimal optional C intrinsic boundary emits
-architecture-specific instructions. Rust is used only as an external
-correctness and benchmark reference.
+`swift-gigatoken` is an independent Swift implementation inspired by
+Marcel Roed's original [`gigatoken`](https://github.com/marcelroed/gigatoken)
+project. It implements its own public API, ownership model, pretokenization, and
+BPE algorithm in Swift. A minimal optional C intrinsic boundary emits
+architecture-specific instructions. The original Rust implementation is used
+only as an external correctness and benchmark reference.
 
 ```text
 mapped .tiktoken bytes (host only)
