@@ -4,6 +4,10 @@ Byte-level BPE tokenization with a Pure Swift portable data path for Native,
 WebAssembly, and Embedded Swift, plus compile-time-gated native kernels where
 the target contract guarantees the required instructions.
 
+On an Apple M4 Max, the single-threaded warm `r50k_base` path reaches
+**670.50 MB/s** while producing exactly the same token IDs as the reference
+implementation.
+
 ## Acknowledgements
 
 This project is an independent Swift implementation inspired by
@@ -12,6 +16,46 @@ This project is an independent Swift implementation inspired by
 the `gigatoken` name and demonstrated high-throughput language-model
 tokenization. `swift-gigatoken` exists because of that work, and references to
 this implementation's lineage should credit the original project and author.
+
+## Performance
+
+`swift-gigatoken` is designed for tokenizer hot paths where copying, allocation,
+branching, and cache misses are measurable costs.
+
+| 16 MiB `enwik8`, warm median | Throughput | Token IDs | Checksum |
+|---|---:|---:|---:|
+| `swift-gigatoken` | **670.50 MB/s** | 4,929,342 | `9bb0d84c9a7a327d` |
+| Original Rust [`gigatoken`](https://github.com/marcelroed/gigatoken) 0.9.0 by Marcel Roed | 652.36 MB/s | 4,929,342 | `9bb0d84c9a7a327d` |
+
+That result is **1.028x the throughput of the original Rust implementation**
+on the same Apple M4 Max, model, input bytes, and single-threaded benchmark
+path. The strict interleaved gate passed four consecutive times at 1.0128x,
+1.0177x, 1.1259x, and 1.0278x, with full token identity on every run.
+
+These are measured results on one machine rather than a universal throughput
+guarantee. See [the complete benchmark methodology](Documentation/Benchmark.md)
+for toolchain versions, pinned revisions, input hashes, and reproduction steps.
+
+## Why it is fast
+
+| Hot-path feature | Implementation |
+|---|---|
+| Zero-copy input and output | Borrows caller-owned UTF-8 bytes and writes directly into a reusable, move-only `TokenBuffer`. |
+| 64-byte classification | Uses NEON on Apple ARM64 and SWAR on portable targets. |
+| Two-instruction cache hashing | Emits two ARM `crc32x` instructions on supported ARM64 targets. |
+| Cache-aware lookup | Uses aligned two-slot buckets, low native load factor, branchless home-pair probes, and explicit L2/L1 prefetch. |
+| Reused working storage | Reuses token arenas, merge scratch, pretoken batches, caches, and output capacity across calls. |
+| Batched output | Keeps a persistent output cursor and unrolls the common four-entry fast path. |
+| Verified machine code | Release checks reject missing NEON, CRC32, or prefetch instructions and unexpected hot-loop calls. |
+
+## Features
+
+- Foundation-free `GigaTokenCore` with typed failures and no silent fallback.
+- Native Apple ARM64 acceleration with a Pure Swift portable implementation.
+- WebAssembly and Embedded Swift build and smoke-test coverage.
+- Caller-owned, reusable storage for allocation-sensitive applications.
+- Contiguous `UInt32` token access for MLX Swift, Core AI, and other runtimes.
+- Exact `r50k_base` parity against pinned reference fixtures.
 
 The current compatibility baseline is `r50k_base`. The package separates the Foundation-free tokenizer core from host model loading and benchmarking.
 
