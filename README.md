@@ -36,6 +36,28 @@ These are measured results on one machine rather than a universal throughput
 guarantee. See [the complete benchmark methodology](Documentation/Benchmark.md)
 for toolchain versions, pinned revisions, input hashes, and reproduction steps.
 
+### General tokenizer API comparison
+
+The same 16 MiB input was also encoded through the public APIs of two widely
+used general-purpose tokenizer packages. Every implementation produced the
+same 4,929,342 token IDs and the same `9bb0d84c9a7a327d` checksum.
+
+| Public encode API, seven-run warm median | Throughput | Swift relative throughput |
+|---|---:|---:|
+| `swift-gigatoken` | **1,078.37 MB/s** | 1.00x |
+| Original Rust [`gigatoken`](https://github.com/marcelroed/gigatoken) 0.9.0 | 1,023.48 MB/s | 1.05x |
+| OpenAI `tiktoken` 0.12.0 | 15.81 MB/s | **68.21x** |
+| Hugging Face `tokenizers` 0.22.1 | 2.33 MB/s | **461.85x** |
+
+This is an end-to-end comparison of public encode APIs, including each API's
+required output materialization. It is not a claim that the underlying
+`tiktoken` or Hugging Face native kernels alone are slower by those factors.
+Python input decoding, model loading, garbage collection, and checksum
+calculation are outside the timed warm encode region. Hugging Face parallelism
+is disabled so all four paths remain single-threaded. The absolute numbers
+differ from the stricter interleaved Swift/Rust gate above because this
+four-implementation comparison was recorded in a separate low-load run.
+
 ## Why it is fast
 
 | Hot-path feature | Implementation |
@@ -132,5 +154,5 @@ The r50k test fixture is OpenAI's public `r50k_base.tiktoken` model with
 SHA-256 `306cd27f03c1a714eca7108e03d66b7dc042abe8c258b44c199a7ed9838dd930`.
 
 See `Documentation/Architecture.md` for target boundaries and correctness
-requirements, and `Documentation/Benchmark.md` for the reproducible Rust
-comparison and measured results.
+requirements, and `Documentation/Benchmark.md` for the reproducible Rust and
+general-tokenizer comparisons.

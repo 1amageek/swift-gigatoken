@@ -1,5 +1,6 @@
 .build/
 .swiftpm/
+__pycache__/
 benchmark-results/
 Benchmarks/RustReference/target/
 .DS_Store

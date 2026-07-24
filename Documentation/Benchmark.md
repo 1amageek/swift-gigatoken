@@ -1,4 +1,4 @@
-# Rust comparison benchmark
+# Tokenizer comparison benchmarks
 
 Measured on 2026-07-23 using the same rank file, input bytes, and single-threaded
 tokenizer path. Output equality is checked by token count and a byte-order-stable
@@ -61,3 +61,66 @@ The script pins the Rust git revision through `Cargo.lock`, builds both release
 binaries with native CPU optimization, alternates seven process pairs, writes
 JSON results under the ignored `benchmark-results` directory, and exits with
 failure when either token count or token checksum differs.
+
+## General-purpose tokenizer APIs
+
+A separate run recorded on 2026-07-24 compares the public encode APIs of
+`swift-gigatoken`, the original Rust `gigatoken`, OpenAI `tiktoken`, and
+Hugging Face `tokenizers`. This answers the application-level question of how
+quickly each package turns the same input into an owned sequence of token IDs.
+
+```text
+                     same 16 MiB UTF-8 input
+                                |
+       +------------------------+-------------------------+
+       |                        |                         |
+  Swift/Rust bytes       tiktoken Python text    Hugging Face Python text
+       |                        |                         |
+       +------------------------+-------------------------+
+                                |
+           4,929,342 IDs / 9bb0d84c9a7a327d
+```
+
+### Additional environment
+
+| Item | Value |
+|---|---|
+| Python | CPython 3.12.8 |
+| OpenAI tokenizer | `tiktoken` 0.12.0, `r50k_base` |
+| Hugging Face tokenizer | `tokenizers` 0.22.1, `openai-community/gpt2` revision `607a30d783dfa663caf39e06633721c8d4cfcd7e` |
+| Parallelism | One caller thread; `RAYON_NUM_THREADS=1`; `TOKENIZERS_PARALLELISM=false` |
+| Iterations | One cold encode followed by seven warm encodes; warm median reported |
+
+### Results
+
+| Public encode API | Warm median | Relative to Swift | Token identity |
+|---|---:|---:|---:|
+| `swift-gigatoken` | **1,078.37 MB/s** | 1.00x | exact |
+| Original Rust `gigatoken` 0.9.0 | 1,023.48 MB/s | Swift 1.05x | exact |
+| OpenAI `tiktoken` 0.12.0 | 15.81 MB/s | Swift **68.21x** | exact |
+| Hugging Face `tokenizers` 0.22.1 | 2.33 MB/s | Swift **461.85x** | exact |
+
+This is an end-to-end public-API comparison, not an isolated comparison of
+native tokenizer kernels. The timed region includes the encode call and its
+required output token-list materialization. Input file I/O, UTF-8 decoding for
+the Python APIs, model loading, garbage collection, and checksum calculation
+are outside that region. Garbage collection runs before each Python iteration
+so the preceding multi-million-element output list is not retained during the
+next measurement.
+
+All four results are rejected unless their token count and full FNV-1a token
+checksum equal the Swift result. The Python dependency versions and the
+Hugging Face model revision are pinned. The model is stored in the standard
+Hugging Face cache rather than inside this repository.
+
+### Reproduction
+
+```bash
+Benchmarks/run-general-comparison.sh /path/to/r50k_base.tiktoken /path/to/input
+```
+
+The script creates a Python virtual environment under `.build`, installs the
+pinned packages, builds the two native release binaries with native CPU
+optimization, runs every implementation, verifies full-output identity, and
+writes JSON results under `benchmark-results/general`. Throughput uses decimal
+megabytes per second (`input byte count / elapsed seconds / 1,000,000`).
