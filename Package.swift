@@ -11,7 +11,6 @@ let package = Package(
   products: [
     .library(name: "GigaTokenCore", targets: ["GigaTokenCore"]),
     .library(name: "GigaToken", targets: ["GigaToken"]),
-    .executable(name: "gigatoken-smoke", targets: ["GigaTokenSmoke"]),
     .executable(name: "gigatoken-benchmark", targets: ["GigaTokenBenchmark"]),
   ],
   dependencies: [
@@ -34,7 +33,8 @@ let package = Package(
     ),
     .executableTarget(
       name: "GigaTokenSmoke",
-      dependencies: ["GigaTokenCore"]
+      dependencies: ["GigaTokenCore"],
+      path: "Tests/GigaTokenSmoke"
     ),
     .executableTarget(
       name: "GigaTokenBenchmark",

@@ -74,8 +74,8 @@ let text = try tokenizer.decode(tokens)
 swiftly run swift +6.3.1 ++ build
 swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm --target GigaTokenCore
 swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm-embedded --target GigaTokenCore
-swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm gigatoken-smoke
-swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm-embedded gigatoken-smoke
+swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm GigaTokenSmoke
+swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm-embedded GigaTokenSmoke
 ```
 
 `GigaTokenCore` accepts rank-ordered token bytes directly, so Wasm and

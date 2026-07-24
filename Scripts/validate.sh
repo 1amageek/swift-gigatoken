@@ -11,7 +11,7 @@ perl -e 'alarm shift; exec @ARGV' 120 \
     -destination 'platform=macOS' \
     -maximum-test-execution-time-allowance 60
 
-swiftly run swift +6.3.1 ++ run -c release gigatoken-smoke
+swiftly run swift +6.3.1 ++ run -c release GigaTokenSmoke
 "$root_directory/Scripts/verify-codegen.sh"
 "$root_directory/Scripts/verify-portability.sh"
 

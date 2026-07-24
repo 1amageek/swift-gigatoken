@@ -19,14 +19,14 @@ swiftly run swift +6.3.1 ++ build \
   --swift-sdk swift-6.3.1-RELEASE_wasm \
   -c release \
   --scratch-path "$wasm_scratch" \
-  --product gigatoken-smoke
+  --product GigaTokenSmoke
 node --no-warnings "$root_directory/Scripts/run-wasi.mjs" \
-  "$wasm_scratch/wasm32-unknown-wasip1/release/gigatoken-smoke.wasm"
+  "$wasm_scratch/wasm32-unknown-wasip1/release/GigaTokenSmoke.wasm"
 
 swiftly run swift +6.3.1 ++ build \
   --swift-sdk swift-6.3.1-RELEASE_wasm-embedded \
   -c release \
   --scratch-path "$embedded_scratch" \
-  --product gigatoken-smoke
+  --product GigaTokenSmoke
 node --no-warnings "$root_directory/Scripts/run-wasi.mjs" \
-  "$embedded_scratch/wasm32-unknown-wasip1/release/gigatoken-smoke.wasm"
+  "$embedded_scratch/wasm32-unknown-wasip1/release/GigaTokenSmoke.wasm"
