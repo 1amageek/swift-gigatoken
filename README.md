@@ -40,7 +40,8 @@ for toolchain versions, pinned revisions, input hashes, and reproduction steps.
 
 The same 16 MiB input was also encoded through the public APIs of two widely
 used general-purpose tokenizer packages. Every implementation produced the
-same 4,929,342 token IDs and the same `9bb0d84c9a7a327d` checksum.
+same 4,929,342-token count and the same `9bb0d84c9a7a327d` checksum over all
+token IDs.
 
 | Public encode API, seven-run warm median | Throughput | Swift relative throughput |
 |---|---:|---:|

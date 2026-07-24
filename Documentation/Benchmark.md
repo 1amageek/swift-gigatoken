@@ -93,12 +93,12 @@ quickly each package turns the same input into an owned sequence of token IDs.
 
 ### Results
 
-| Public encode API | Warm median | Relative to Swift | Token identity |
+| Public encode API | Warm median | Relative to Swift | Output verification |
 |---|---:|---:|---:|
-| `swift-gigatoken` | **1,078.37 MB/s** | 1.00x | exact |
-| Original Rust `gigatoken` 0.9.0 | 1,023.48 MB/s | Swift 1.05x | exact |
-| OpenAI `tiktoken` 0.12.0 | 15.81 MB/s | Swift **68.21x** | exact |
-| Hugging Face `tokenizers` 0.22.1 | 2.33 MB/s | Swift **461.85x** | exact |
+| `swift-gigatoken` | **1,078.37 MB/s** | 1.00x | baseline |
+| Original Rust `gigatoken` 0.9.0 | 1,023.48 MB/s | Swift 1.05x | count + checksum match |
+| OpenAI `tiktoken` 0.12.0 | 15.81 MB/s | Swift **68.21x** | count + checksum match |
+| Hugging Face `tokenizers` 0.22.1 | 2.33 MB/s | Swift **461.85x** | count + checksum match |
 
 This is an end-to-end public-API comparison, not an isolated comparison of
 native tokenizer kernels. The timed region includes the encode call and its
