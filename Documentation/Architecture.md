@@ -51,6 +51,32 @@ repeated identical encodes. That is a storage-reuse guarantee; it is not
 presented as a whole-process proof that the Swift runtime performs zero
 allocations.
 
+## Concurrency and synchronization contract
+
+`BPEModel` is immutable and `Sendable`, so callers may share one model across
+tasks, threads, and supported Embedded execution contexts. `BPEEncoder` and
+`GigaTokenizer` are move-only mutable values. Each instance exclusively owns
+its short cache, long cache, token arena, merge workspace, and pretoken scratch
+allocation. Their mutating API makes concurrent access to one instance invalid
+rather than silently serializing the tokenizer hot path.
+
+```text
+                         shared immutable BPEModel
+                           /        |        \
+                          /         |         \
+                 encoder A    encoder B    encoder C
+                 owned state  owned state  owned state
+```
+
+No current production path has shared mutable state, so adding a mutex would
+protect no valid sharing boundary and would add lock traffic to every encode.
+If a future API introduces shared mutable memory, Native, Wasm, and Embedded
+targets must use the same `Synchronization.Mutex<State>` exclusion contract.
+Target differences belong in the linked platform implementation, not in an
+`hasFeature(Embedded)` synchronization bypass. ISR and DMA callbacks must hand
+work to task/thread context through target-appropriate atomics, a bounded
+queue, or an interrupt-safe critical section before tokenizer state is used.
+
 ## Correctness contract
 
 - Merge priority is the mergeable-rank token ID, matching tiktoken-style vocabularies.
@@ -66,6 +92,11 @@ in `Scripts/requirements-generation.txt`; generated artifacts are never
 silently accepted when a check differs.
 
 ## Portability contract
+
+The fixed baseline is Swift
+`swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a` with the matching standard and
+Embedded Wasm SDKs. Validation logs the exact toolchain, SDK identifiers, and
+`wasm32-unknown-wasip1` target triple before compiling.
 
 The portable path does not use Foundation, filesystem APIs, OS threads, memory
 mapping, or foreign-language algorithms. Host model parsing remains outside the

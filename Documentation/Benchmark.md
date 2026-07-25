@@ -17,7 +17,7 @@ enwik8 16 MiB -> Swift encode -> 4,929,342 IDs -> 9bb0d84c9a7a327d
 |---|---|
 | Machine | MacBook Pro, Apple M4 Max, 14 cores, 36 GB |
 | OS | macOS 27.0 (26A5378n) |
-| Swift | 6.3.1 RELEASE |
+| Swift used for the recorded result | 6.3.1 RELEASE |
 | Rust | nightly 1.99.0 (2026-07-21) |
 | Rust reference | [gigatoken](https://github.com/marcelroed/gigatoken) 0.9.0 by [Marcel Roed](https://github.com/marcelroed), commit `542367a3efed134883fb4f1140b49c04e6fad3a3` |
 | Model | `r50k_base.tiktoken`, SHA-256 `306cd27f03c1a714eca7108e03d66b7dc042abe8c258b44c199a7ed9838dd930` |
@@ -50,6 +50,11 @@ The reported gate passed four times consecutively with Swift/Rust ratios of
 Absolute throughput still depends on processor, toolchain, and host load, so
 release validation must rerun the interleaved gate rather than relying on this
 recorded result.
+
+The package's current build and portability baseline is
+`swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a`; the reproduction scripts use
+that pinned toolchain. The table above remains explicitly tied to its recorded
+Swift 6.3.1 run until a new low-load Swift 6.4 benchmark is accepted.
 
 ## Reproduction
 

@@ -93,12 +93,22 @@ let text = try tokenizer.decode(tokens)
 
 ## Build
 
+The package baseline pins one Swift 6.4 development snapshot and matching
+standard and Embedded Wasm SDKs:
+
+| Component | Identifier |
+|---|---|
+| Toolchain | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a` |
+| Standard Wasm SDK | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a_wasm` |
+| Embedded Wasm SDK | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a_wasm-embedded` |
+
 ```bash
-swiftly run swift +6.3.1 ++ build
-swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm --target GigaTokenCore
-swiftly run swift +6.3.1 ++ build --swift-sdk swift-6.3.1-RELEASE_wasm-embedded --target GigaTokenCore
-swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm GigaTokenSmoke
-swiftly run swift +6.3.1 ++ run --swift-sdk swift-6.3.1-RELEASE_wasm-embedded GigaTokenSmoke
+source Scripts/swift-toolchain.sh
+verify_swift64_environment
+swift64 build
+swift64 build --swift-sdk "$SWIFT_WASM_SDK" --target GigaTokenCore
+swift64 build --swift-sdk "$SWIFT_EMBEDDED_WASM_SDK" --target GigaTokenCore
+Scripts/verify-portability.sh
 ```
 
 `GigaTokenCore` accepts rank-ordered token bytes directly, so Wasm and

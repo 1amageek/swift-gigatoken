@@ -32,7 +32,9 @@ struct LongPretokenCache: ~Copyable {
   private var byteArena: [UInt8]
 
   init(minimumCapacity: Int = 64) {
-    precondition(MemoryLayout<LongPretokenCacheEntry>.stride == 40)
+    let expectedEntryStride =
+      MemoryLayout<UInt64>.stride + 4 * MemoryLayout<Int>.stride
+    precondition(MemoryLayout<LongPretokenCacheEntry>.stride == expectedEntryStride)
     var capacity = 16
     while capacity < minimumCapacity {
       capacity <<= 1

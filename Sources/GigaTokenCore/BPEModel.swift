@@ -75,9 +75,8 @@ public struct BPEModel: TokenByteDecoding, Sendable {
       throw TokenizerError.invalidTokenOffsets(index: tokenOffsets.count - 1)
     }
 
-    var specialIDs = Set<TokenID>()
-    var specialBytes = Set<[UInt8]>()
-    for special in specialTokens {
+    for specialIndex in specialTokens.indices {
+      let special = specialTokens[specialIndex]
       guard !special.bytes.isEmpty else {
         throw TokenizerError.emptySpecialToken(id: special.id)
       }
@@ -89,11 +88,14 @@ public struct BPEModel: TokenByteDecoding, Sendable {
       guard UInt64(special.id.rawValue) >= UInt64(tokenCount) else {
         throw TokenizerError.specialTokenIDCollidesWithVocabulary(id: special.id)
       }
-      guard specialIDs.insert(special.id).inserted else {
-        throw TokenizerError.duplicateSpecialTokenID(id: special.id)
-      }
-      guard specialBytes.insert(special.bytes).inserted else {
-        throw TokenizerError.duplicateSpecialTokenBytes(bytes: special.bytes)
+      for previousIndex in specialTokens.indices where previousIndex < specialIndex {
+        let previous = specialTokens[previousIndex]
+        guard previous.id != special.id else {
+          throw TokenizerError.duplicateSpecialTokenID(id: special.id)
+        }
+        guard previous.bytes != special.bytes else {
+          throw TokenizerError.duplicateSpecialTokenBytes(bytes: special.bytes)
+        }
       }
     }
 

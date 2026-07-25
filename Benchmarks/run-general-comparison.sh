@@ -13,13 +13,16 @@ results_dir="$package_root/benchmark-results/general"
 python_environment="$package_root/.build/python-reference"
 iterations=7
 
+source "$package_root/Scripts/swift-toolchain.sh"
+verify_swift64_environment
+
 mkdir -p "$results_dir"
 
-swiftly run swift +6.3.1 ++ build \
+swift64_timed build \
     --package-path "$package_root" \
     -c release \
     --product gigatoken-benchmark
-swift_bin_path=$(swiftly run swift +6.3.1 ++ build \
+swift_bin_path=$(swift64 build \
     --package-path "$package_root" \
     -c release \
     --show-bin-path)

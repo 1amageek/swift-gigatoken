@@ -3,15 +3,17 @@ set -euo pipefail
 
 root_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+source "$root_directory/Scripts/swift-toolchain.sh"
+
 cd "$root_directory"
+verify_swift64_environment
 
-perl -e 'alarm shift; exec @ARGV' 120 \
-  xcodebuild test \
-    -scheme swift-gigatoken-Package \
-    -destination 'platform=macOS' \
-    -maximum-test-execution-time-allowance 60
+xcodebuild64_timed test \
+  -scheme swift-gigatoken-Package \
+  -destination 'platform=macOS' \
+  -maximum-test-execution-time-allowance 60
 
-swiftly run swift +6.3.1 ++ run -c release GigaTokenSmoke
+swift64_timed run -c release GigaTokenSmoke
 "$root_directory/Scripts/verify-codegen.sh"
 "$root_directory/Scripts/verify-portability.sh"
 

@@ -8,12 +8,19 @@ if (modulePath === undefined) {
 
 const wasi = new WASI({
   version: "preview1",
-  args: [],
+  args: [modulePath],
   env: {},
+  stdin: 0,
+  stdout: 1,
+  stderr: 2,
+  returnOnExit: true,
 });
 const bytes = await readFile(modulePath);
 const { instance } = await WebAssembly.instantiate(bytes, {
   wasi_snapshot_preview1: wasi.wasiImport,
 });
-wasi.start(instance);
-console.log(`wasi-smoke: ok ${modulePath}`);
+const exitCode = wasi.start(instance);
+if (exitCode !== 0) {
+  throw new Error(`WASI module exited with status ${exitCode}: ${modulePath}`);
+}
+console.log(`wasi-run: ok ${modulePath}`);

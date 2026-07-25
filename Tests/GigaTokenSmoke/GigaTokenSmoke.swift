@@ -3,8 +3,16 @@ import GigaTokenCore
 @main
 struct GigaTokenSmoke {
   static func main() {
+    #if hasFeature(Embedded)
+      print("execution-mode: embedded-wasm")
+    #elseif arch(wasm32)
+      print("execution-mode: standard-wasm")
+    #else
+      print("execution-mode: native")
+    #endif
+
     do {
-      var vocabulary = (0...255).map { [UInt8($0)] }
+      var vocabulary = byteVocabulary()
       vocabulary.append([0x61, 0x62])
       vocabulary.append([0x61, 0x62, 0x63])
 
@@ -35,7 +43,7 @@ struct GigaTokenSmoke {
 
       let special = SpecialToken(bytes: Array("<special>".utf8), id: TokenID(rawValue: 300))
       let specialModel = try BPEModel(
-        rankOrderedTokens: (0...255).map { [UInt8($0)] },
+        rankOrderedTokens: byteVocabulary(),
         specialTokens: [special]
       )
       var specialEncoder = BPEEncoder(model: specialModel)
@@ -68,8 +76,18 @@ struct GigaTokenSmoke {
       guard encoder.storageMetrics.longCacheSlotCapacity > 64 else {
         fatalError("Long pretoken cache growth was not exercised")
       }
+      print("gigatoken-smoke: passed")
     } catch {
       fatalError("Tokenizer smoke test failed")
     }
+  }
+
+  private static func byteVocabulary() -> [[UInt8]] {
+    var vocabulary: [[UInt8]] = []
+    vocabulary.reserveCapacity(256)
+    for byte in UInt16(0)...UInt16(255) {
+      vocabulary.append([UInt8(byte)])
+    }
+    return vocabulary
   }
 }

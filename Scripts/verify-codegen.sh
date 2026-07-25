@@ -3,21 +3,24 @@ set -euo pipefail
 
 root_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+source "$root_directory/Scripts/swift-toolchain.sh"
+
 if [[ "$(uname -m)" != "arm64" ]]; then
   echo "native-codegen: skipped because the host is not ARM64"
   exit 0
 fi
 
 cd "$root_directory"
-swiftly run swift +6.3.1 ++ build -c release --product gigatoken-benchmark
-binary_path=$(swiftly run swift +6.3.1 ++ build -c release --show-bin-path)
+verify_swift64_environment
+swift64_timed build -c release --product gigatoken-benchmark
+binary_path=$(swift64 build -c release --show-bin-path)
 binary="$binary_path/gigatoken-benchmark"
 fill_symbol=$(
-  llvm-nm "$binary" \
+  "$LLVM_NM" "$binary" \
     | awk '/R50KPretokenizerV17fillPretokenBatch/ && !found { print $3; found = 1 }'
 )
 boundary_symbol=$(
-  llvm-nm "$binary" \
+  "$LLVM_NM" "$binary" \
     | awk '/R50KPretokenizerV12boundaryMask/ && !found { print $3; found = 1 }'
 )
 
@@ -26,8 +29,8 @@ if [[ -z "$fill_symbol" || -z "$boundary_symbol" ]]; then
   exit 1
 fi
 
-fill_assembly=$(llvm-objdump --disassemble-symbols="$fill_symbol" "$binary")
-boundary_assembly=$(llvm-objdump --disassemble-symbols="$boundary_symbol" "$binary")
+fill_assembly=$("$LLVM_OBJDUMP" --disassemble-symbols="$fill_symbol" "$binary")
+boundary_assembly=$("$LLVM_OBJDUMP" --disassemble-symbols="$boundary_symbol" "$binary")
 if grep -q 'SIMD128ByteMaskKernelV6scan64' <<<"$boundary_assembly"; then
   echo "native-codegen: scan64 remained an external hot-loop call" >&2
   exit 1
