@@ -2,7 +2,7 @@ import GigaTokenCore
 
 @main
 struct GigaTokenSmoke {
-  static func main() {
+  static func main() async {
     #if hasFeature(Embedded)
       print("execution-mode: embedded-wasm")
     #elseif arch(wasm32)
@@ -11,6 +11,34 @@ struct GigaTokenSmoke {
       print("execution-mode: native")
     #endif
 
+    let fixture = runSynchronousSmoke()
+    let results = await withTaskGroup(
+      of: [TokenID].self,
+      returning: [[TokenID]].self
+    ) { group in
+      for _ in 0..<8 {
+        group.addTask {
+          encodeForConcurrency(model: fixture.model, input: fixture.input)
+        }
+      }
+      var successfulResults: [[TokenID]] = []
+      successfulResults.reserveCapacity(8)
+      for await result in group {
+        successfulResults.append(result)
+      }
+      return successfulResults
+    }
+    guard results.count == 8 else {
+      fatalError("Concurrent encoder task count diverged")
+    }
+    guard results.allSatisfy({ $0 == fixture.expected }) else {
+      fatalError("Concurrent encoder results diverged")
+    }
+    print("concurrency-smoke: passed")
+    print("gigatoken-smoke: passed")
+  }
+
+  private static func runSynchronousSmoke() -> ConcurrencyFixture {
     do {
       var vocabulary = byteVocabulary()
       vocabulary.append([0x61, 0x62])
@@ -76,9 +104,29 @@ struct GigaTokenSmoke {
       guard encoder.storageMetrics.longCacheSlotCapacity > 64 else {
         fatalError("Long pretoken cache growth was not exercised")
       }
-      print("gigatoken-smoke: passed")
+      let concurrentInput = Array(
+        String(repeating: "The quick brown fox jumps over 12345! ", count: 128).utf8
+      )
+      let concurrentExpected = try encoder.encodeOrdinary(concurrentInput)
+      return ConcurrencyFixture(
+        model: model,
+        input: concurrentInput,
+        expected: concurrentExpected
+      )
     } catch {
-      fatalError("Tokenizer smoke test failed")
+      fatalError("Tokenizer smoke test failed: \(error)")
+    }
+  }
+
+  private static func encodeForConcurrency(
+    model: BPEModel,
+    input: [UInt8]
+  ) -> [TokenID] {
+    do {
+      var encoder = BPEEncoder(model: model)
+      return try encoder.encodeOrdinary(input)
+    } catch {
+      fatalError("Concurrent encoder failed: \(error)")
     }
   }
 
@@ -90,4 +138,10 @@ struct GigaTokenSmoke {
     }
     return vocabulary
   }
+}
+
+private struct ConcurrencyFixture: Sendable {
+  let model: BPEModel
+  let input: [UInt8]
+  let expected: [TokenID]
 }

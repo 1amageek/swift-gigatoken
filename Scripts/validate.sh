@@ -7,11 +7,32 @@ source "$root_directory/Scripts/swift-toolchain.sh"
 
 cd "$root_directory"
 verify_swift64_environment
+"$root_directory/Scripts/generate-r50k-parity.py" --check
 
 xcodebuild64_timed test \
   -scheme swift-gigatoken-Package \
   -destination 'platform=macOS' \
   -maximum-test-execution-time-allowance 60
+
+xcodebuild64_timed test \
+  -scheme swift-gigatoken-Package \
+  -destination 'platform=macOS' \
+  -enableAddressSanitizer YES \
+  -only-testing:GigaTokenCoreTests/BPEModelTests \
+  -maximum-test-execution-time-allowance 60
+xcodebuild64_timed test \
+  -scheme swift-gigatoken-Package \
+  -destination 'platform=macOS' \
+  -enableUndefinedBehaviorSanitizer YES \
+  -only-testing:GigaTokenCoreTests/BPEModelTests \
+  -maximum-test-execution-time-allowance 60
+xcodebuild64_timed test \
+  -scheme swift-gigatoken-Package \
+  -destination 'platform=macOS' \
+  -enableThreadSanitizer YES \
+  -only-testing:GigaTokenCoreTests/EncoderOwnershipTests \
+  -maximum-test-execution-time-allowance 60
+echo "native-sanitizers: Address, Undefined Behavior, and Thread Sanitizer gates passed"
 
 swift64_timed run -c release GigaTokenSmoke
 "$root_directory/Scripts/verify-codegen.sh"

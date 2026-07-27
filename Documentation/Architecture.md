@@ -40,7 +40,7 @@ borrowed input bytes ───────────────────�
 | Base64 token payload | final packed model storage | decoded directly; no per-token `Data` or `[UInt8]` |
 | `BPEModel` token data | one `[UInt8]` plus `[UInt32]` offsets | slices are ranges, not nested arrays |
 | encode input | caller-owned borrowed buffer | no input copy on buffer overloads |
-| encode output | move-only `TokenBuffer` | direct write, reusable allocation |
+| encode output | move-only `TokenBuffer` | direct write through a closure-scoped, `~Escapable` `MutableSpan` cursor; reusable allocation |
 | short pretoken cache | encoder-owned raw allocation | 32-byte entries, 64-byte pair buckets, 2 MiB native alignment for large tables; native ARM64 grows at 25% load for home-pair speed, portable targets at 75% for memory discipline |
 | long pretoken cache | encoder-owned byte/token arenas plus ranges | copies a key once on a cold ownership boundary; warm lookup borrows the input and reuses stored ranges |
 | convenience `String` / array APIs | returned owned value | materializes at the explicit API boundary |
@@ -50,6 +50,13 @@ warm-up. Tests assert stable capacities and the required cache alignment across
 repeated identical encodes. That is a storage-reuse guarantee; it is not
 presented as a whole-process proof that the Swift runtime performs zero
 allocations.
+
+`TokenBuffer` is the exactly-once owner of its initialized `UInt32` allocation.
+Its inline four-lane store uses three initialized guard lanes beyond the logical
+append budget; only the logical token count is committed. `ShortPretokenCache`
+similarly owns and binds its bucket allocation once. Cache probe and prefetch
+pointers are consumed within one method call, so neither output nor cache
+pointers can survive a grow operation.
 
 ## Concurrency and synchronization contract
 
@@ -86,7 +93,8 @@ queue, or an interrupt-safe critical section before tokenizer state is used.
 
 The Unicode property table is generated from pinned `regex` Unicode data by
 `Scripts/generate-unicode-class-table.py`. The reference token IDs in
-`r50k_parity.json` are regenerated or verified through pinned Python
+`r50k_parity.json` and the 110,126-byte `r50k_long_parity.json` are regenerated
+or verified through pinned Python
 `tiktoken` by `Scripts/generate-r50k-parity.py`. Their dependencies are fixed
 in `Scripts/requirements-generation.txt`; generated artifacts are never
 silently accepted when a check differs.
@@ -106,10 +114,13 @@ runtime JSON or Base64 parsing. Platform-specific alignment is disabled on
 wasm32 while the same tokenizer semantics and typed failures remain active.
 
 The native module is an instruction-emission shim, not a second tokenizer
-implementation. On ARM64 it uses the SDK target's CRC32 capability constant; on
-Wasm and Embedded-Wasm it is inert and the Pure Swift multiplicative hash is
-selected. The hash affects only cache placement, so token IDs and errors remain
-backend-independent.
+implementation. A static-inline C intrinsic emits cache prefetch hints without
+using Swift-to-LLVM symbol coupling. On ARM64 it also uses the SDK target's
+CRC32 capability constant; on Wasm and Embedded-Wasm the multiplicative hash is
+selected while prefetch remains a semantic hint. The hash affects only cache
+placement, so token IDs and errors remain backend-independent. Standard and
+Embedded Wasm smoke executables run eight task-group encoders over one shared
+immutable model and require every result to match.
 
 ## ML runtime interoperability contract
 

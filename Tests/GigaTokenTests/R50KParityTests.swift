@@ -66,6 +66,44 @@ struct R50KParityTests {
     }
   }
 
+  @Test("Pinned long corpus matches tiktoken cold and warm")
+  func longCorpusColdWarmParity() throws {
+    guard
+      let fixtureURL = Bundle.module.url(
+        forResource: "r50k_long_parity",
+        withExtension: "json",
+        subdirectory: "Fixtures"
+      )
+    else {
+      throw FixtureError.missingParityCorpus
+    }
+    let fixture = try JSONDecoder().decode(
+      GeneratedParityFixture.self,
+      from: Data(contentsOf: fixtureURL)
+    )
+    let input = Array(fixture.text.utf8)
+    #expect(input.count > 65_536)
+
+    var tokenizer = try tokenizer()
+    let initialMetrics = tokenizer.storageMetrics
+    var output = TokenBuffer(minimumCapacity: 1)
+    try input.withUnsafeBufferPointer { bytes in
+      try tokenizer.encodeOrdinary(bytes, appendingTo: &output)
+    }
+    #expect(output.withUnsafeRawTokenIDs { Array($0) } == fixture.tokens)
+    let coldMetrics = tokenizer.storageMetrics
+    #expect(coldMetrics.shortCacheEntryCount > initialMetrics.shortCacheEntryCount)
+    #expect(coldMetrics.longCacheEntryCount > 256)
+    #expect(coldMetrics.longCacheSlotCapacity > 64)
+
+    output.removeAll(keepingCapacity: true)
+    try input.withUnsafeBufferPointer { bytes in
+      try tokenizer.encodeOrdinary(bytes, appendingTo: &output)
+    }
+    #expect(output.withUnsafeRawTokenIDs { Array($0) } == fixture.tokens)
+    #expect(tokenizer.storageMetrics == coldMetrics)
+  }
+
   @Test("Malformed model files fail with typed errors")
   func malformedModels() throws {
     let loader = TiktokenModelLoader()
@@ -78,6 +116,13 @@ struct R50KParityTests {
     }
     #expect(throws: TokenizerError.invalidModelLine(line: 1)) {
       _ = try loader.model(at: fixtureURL(named: "invalid_line"))
+    }
+    #expect(throws: TokenizerError.invalidModelLine(line: 2)) {
+      _ = try loader.model(at: fixtureURL(named: "invalid_blank_line"))
+    }
+    let missingURL = URL(fileURLWithPath: "/nonexistent/swift-gigatoken/model.tiktoken")
+    #expect(throws: TokenizerError.unreadableModel(path: missingURL.path)) {
+      _ = try loader.model(at: missingURL)
     }
   }
 

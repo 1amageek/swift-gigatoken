@@ -23,7 +23,7 @@ public struct R50KPretokenizer: Sendable {
     startingAt start: Int,
     into batch: UnsafeMutablePointer<PretokenBatchEntry>,
     boundaries boundaryBaseAddress: UnsafeMutablePointer<UInt16>,
-    prefetchView: ShortPretokenProbeView
+    prefetchCache: borrowing ShortPretokenCache
   ) throws(TokenizerError) -> PretokenBatchFillResult {
     var pending = start
     var scan = start
@@ -39,7 +39,7 @@ public struct R50KPretokenizer: Sendable {
             end: end,
             at: 0,
             in: batch,
-            prefetchView: prefetchView
+            prefetchCache: prefetchCache
           )
           return PretokenBatchFillResult(count: 1, endPosition: end)
         }
@@ -57,7 +57,7 @@ public struct R50KPretokenizer: Sendable {
               end: end,
               at: 0,
               in: batch,
-              prefetchView: prefetchView
+              prefetchCache: prefetchCache
             )
             return PretokenBatchFillResult(count: 1, endPosition: end)
           }
@@ -89,7 +89,7 @@ public struct R50KPretokenizer: Sendable {
                 end: end,
                 at: 0,
                 in: batch,
-                prefetchView: prefetchView
+                prefetchCache: prefetchCache
               )
               return PretokenBatchFillResult(count: 1, endPosition: end)
             }
@@ -136,7 +136,7 @@ public struct R50KPretokenizer: Sendable {
         end: firstEnd,
         at: index,
         in: batch,
-        prefetchView: prefetchView
+        prefetchCache: prefetchCache
       )
       storePretoken(
         bytes: bytes,
@@ -144,7 +144,7 @@ public struct R50KPretokenizer: Sendable {
         end: secondEnd,
         at: index &+ 1,
         in: batch,
-        prefetchView: prefetchView
+        prefetchCache: prefetchCache
       )
       previous = secondEnd
       index &+= 2
@@ -157,7 +157,7 @@ public struct R50KPretokenizer: Sendable {
         end: end,
         at: index,
         in: batch,
-        prefetchView: prefetchView
+        prefetchCache: prefetchCache
       )
       previous = end
       index &+= 1
@@ -375,7 +375,7 @@ public struct R50KPretokenizer: Sendable {
     end: Int,
     at index: Int,
     in batch: UnsafeMutablePointer<PretokenBatchEntry>,
-    prefetchView: ShortPretokenProbeView
+    prefetchCache: borrowing ShortPretokenCache
   ) {
     if let key = ShortPretokenKey(bytes: bytes, start: start, count: end &- start) {
       let hash = key.hash
@@ -385,7 +385,7 @@ public struct R50KPretokenizer: Sendable {
         keyLow: key.low,
         keyHigh: key.high
       )
-      prefetchView.prefetchForRead(hash: hash, locality: .level2)
+      prefetchCache.prefetchForRead(hash: hash, locality: .level2)
       return
     }
     batch.advanced(by: index).pointee = PretokenBatchEntry(

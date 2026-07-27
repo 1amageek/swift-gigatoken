@@ -57,7 +57,6 @@ struct R50KPretokenizerTests {
     ]
     var state: UInt64 = 0x243F_6A88_85A3_08D3
     let prefetchCache = ShortPretokenCache(expectedCount: 1)
-    let prefetchView = prefetchCache.probeView()
     for round in 0..<1_000 {
       var text = ""
       while text.utf8.count < 256 + round % 128 {
@@ -83,7 +82,7 @@ struct R50KPretokenizerTests {
               startingAt: position,
               into: batchBuffer.baseAddress!,
               boundaries: scratch.boundaries,
-              prefetchView: prefetchView
+              prefetchCache: prefetchCache
             )
             for index in 0..<result.count {
               let entry = batchBuffer[index]
@@ -117,7 +116,6 @@ struct R50KPretokenizerTests {
       let pretokenizer = R50KPretokenizer()
       let scratch = PretokenScratchStorage()
       let prefetchCache = ShortPretokenCache(expectedCount: 1)
-      let prefetchView = prefetchCache.probeView()
       var position = 0
       while position < buffer.count {
         var batch = InlineArray<264, PretokenBatchEntry> { _ in PretokenBatchEntry() }
@@ -129,7 +127,7 @@ struct R50KPretokenizerTests {
             startingAt: position,
             into: batchBuffer.baseAddress!,
             boundaries: scratch.boundaries,
-            prefetchView: prefetchView
+            prefetchCache: prefetchCache
           )
           var scalarPosition = position
           for index in 0..<result.count {

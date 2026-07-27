@@ -1,4 +1,8 @@
 public struct TokenBuffer: ~Copyable {
+  // This value is the sole owner of `storage`. Exactly one allocation is fully
+  // initialized for `capacity` UInt32 values and deallocated in deinit or grow.
+  // Mutable borrows exist only inside `withAppender`; its ~Escapable cursor
+  // prevents the MutableSpan from surviving a grow, deallocation, or Sendable boundary.
   private var storage: UnsafeMutablePointer<UInt32>?
 
   public private(set) var count: Int
@@ -82,21 +86,31 @@ public struct TokenBuffer: ~Copyable {
     return tokens
   }
 
-  mutating func makeAppender(maximumAdditionalCount: Int) -> TokenOutputCursor {
+  @inline(__always)
+  mutating func withAppender<Result, Failure: Error>(
+    maximumAdditionalCount: Int,
+    _ body: (inout TokenOutputCursor) throws(Failure) -> Result
+  ) throws(Failure) -> Result {
     precondition(maximumAdditionalCount > 0)
     precondition(maximumAdditionalCount <= Int.max - count)
-    let requiredCapacity = count + maximumAdditionalCount
+    precondition(maximumAdditionalCount <= Int.max - count - 3)
+    // Four-lane inline stores may write up to three initialized guard lanes
+    // beyond the logical output. The cursor remains closure-scoped, and the
+    // buffer cannot grow or deallocate while its MutableSpan is borrowed.
+    let requiredCapacity = count + maximumAdditionalCount + 3
     if requiredCapacity > capacity {
       let doubledCapacity = capacity <= Int.max / 2 ? capacity * 2 : Int.max
       grow(to: max(requiredCapacity, max(16, doubledCapacity)))
     }
-    return TokenOutputCursor(storage: storage!.advanced(by: count))
-  }
-
-  mutating func commitAppender(count appendedCount: Int) {
-    precondition(appendedCount >= 0)
-    precondition(count + appendedCount <= capacity)
-    count += appendedCount
+    let tail = UnsafeMutableBufferPointer(
+      start: storage!.advanced(by: count),
+      count: capacity - count
+    )
+    var cursor = TokenOutputCursor(storage: tail.mutableSpan)
+    let result = try body(&cursor)
+    precondition(cursor.count <= maximumAdditionalCount)
+    count += cursor.count
+    return result
   }
 
   mutating func restoreCount(_ restoredCount: Int) {
@@ -124,20 +138,29 @@ public struct TokenBuffer: ~Copyable {
   }
 }
 
-struct TokenOutputCursor: ~Copyable {
-  let storage: UnsafeMutablePointer<UInt32>
+struct TokenOutputCursor: ~Copyable, ~Escapable {
+  private var storage: MutableSpan<UInt32>
   private(set) var count: Int = 0
+
+  @_lifetime(copy storage)
+  init(storage: consuming MutableSpan<UInt32>) {
+    self.storage = storage
+  }
 
   @_transparent
   mutating func appendToken(rawValue: UInt32) {
-    storage.advanced(by: count).pointee = rawValue
-    count &+= 1
+    precondition(count < storage.count)
+    storage[count] = rawValue
+    count += 1
   }
 
   @_transparent
   mutating func appendInlineTokens(value: UInt64, extensionValue: UInt64) {
+    let tokenCount = Int(value & 0x7F)
+    precondition(tokenCount <= 4)
+    precondition(count <= storage.count - tokenCount)
     writeInlineTokens(value: value, extensionValue: extensionValue)
-    count &+= Int(value & 0x7F)
+    count += tokenCount
   }
 
   @_transparent
@@ -146,25 +169,30 @@ struct TokenOutputCursor: ~Copyable {
   }
 
   @_transparent
-  borrowing func writeInlineTokens(
+  mutating func writeInlineTokens(
     value: UInt64,
     extensionValue: UInt64,
     at outputOffset: Int
   ) {
-    let destination = storage.advanced(by: outputOffset)
+    precondition(outputOffset >= 0)
+    precondition(outputOffset <= storage.count - 4)
     let firstPair = ((value >> 8) & 0x00FF_FFFF) | (value & 0xFFFF_FFFF_0000_0000)
     let lanes = SIMD2(firstPair, extensionValue)
-    withUnsafeBytes(of: lanes) { bytes in
-      UnsafeMutableRawPointer(destination).copyMemory(
-        from: bytes.baseAddress!,
-        byteCount: MemoryLayout<SIMD2<UInt64>>.size
-      )
+    storage.withUnsafeMutableBufferPointer { destination in
+      withUnsafeBytes(of: lanes) { bytes in
+        UnsafeMutableRawPointer(destination.baseAddress!.advanced(by: outputOffset)).copyMemory(
+          from: bytes.baseAddress!,
+          byteCount: MemoryLayout<SIMD2<UInt64>>.size
+        )
+      }
     }
   }
 
   @_transparent
   mutating func advance(by additionalCount: Int) {
-    count &+= additionalCount
+    precondition(additionalCount >= 0)
+    precondition(count <= storage.count - additionalCount)
+    count += additionalCount
   }
 
   @inline(__always)
@@ -176,13 +204,16 @@ struct TokenOutputCursor: ~Copyable {
     precondition(offset >= 0)
     precondition(tokenCount >= 0)
     precondition(offset <= arena.count - tokenCount)
-    arena.withUnsafeBufferPointer { tokens in
-      UnsafeMutableRawPointer(storage.advanced(by: count)).copyMemory(
-        from: UnsafeRawPointer(tokens.baseAddress!.advanced(by: offset)),
-        byteCount: tokenCount * MemoryLayout<UInt32>.stride
-      )
+    precondition(count <= storage.count - tokenCount)
+    storage.withUnsafeMutableBufferPointer { destination in
+      arena.withUnsafeBufferPointer { tokens in
+        UnsafeMutableRawPointer(destination.baseAddress!.advanced(by: count)).copyMemory(
+          from: UnsafeRawPointer(tokens.baseAddress!.advanced(by: offset)),
+          byteCount: tokenCount * MemoryLayout<UInt32>.stride
+        )
+      }
     }
-    count &+= tokenCount
+    count += tokenCount
   }
 
 }

@@ -68,7 +68,7 @@ four-implementation comparison was recorded in a separate low-load run.
 | Two-instruction cache hashing | Emits two ARM `crc32x` instructions on supported ARM64 targets. |
 | Cache-aware lookup | Uses aligned two-slot buckets, low native load factor, branchless home-pair probes, and explicit L2/L1 prefetch. |
 | Reused working storage | Reuses token arenas, merge scratch, pretoken batches, caches, and output capacity across calls. |
-| Batched output | Keeps a persistent output cursor and unrolls the common four-entry fast path. |
+| Batched output | Uses a closure-scoped `MutableSpan` cursor and unrolls the common four-entry fast path. |
 | Verified machine code | Release checks reject missing NEON, CRC32, or prefetch instructions and unexpected hot-loop calls. |
 
 ## Features
@@ -79,6 +79,7 @@ four-implementation comparison was recorded in a separate low-load run.
 - Caller-owned, reusable storage for allocation-sensitive applications.
 - Contiguous `UInt32` token access for MLX Swift, Core AI, and other runtimes.
 - Exact `r50k_base` parity against pinned reference fixtures.
+- Exact cold/warm parity on a pinned 110,126-byte corpus that crosses multiple 256-pretoken batches and grows both cache paths.
 
 The current compatibility baseline is `r50k_base`. The package separates the Foundation-free tokenizer core from host model loading and benchmarking.
 

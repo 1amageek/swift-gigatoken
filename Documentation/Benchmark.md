@@ -35,7 +35,7 @@ The current Swift implementation uses a NEON 64-byte classifier and, on the
 benchmarked macOS ARM64 path, an inlined two-instruction ARM CRC32 cache hash.
 Wasm/Embedded and other architectures use SWAR plus a Pure Swift hash. The hot
 path also uses explicit L2/L1 prefetch, a raw aligned two-slot cache, branchless
-home-pair probes, reusable merge scratch, persistent output cursors, and
+home-pair probes, reusable merge scratch, closure-scoped `MutableSpan` output cursors, and
 four-entry fast-path unrolling. Both harnesses reuse their output buffers.
 Native ARM64 uses a 25% maximum short-cache load to keep the common lookup in its
 prefetched home pair; portable targets use 75% to bound memory use.

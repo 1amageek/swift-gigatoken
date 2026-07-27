@@ -190,9 +190,9 @@ public struct BPEEncoder: ~Copyable, TokenEncoding {
         let segment = UnsafeBufferPointer(rebasing: bytes[segmentStart..<position])
         try encodeOrdinary(segment, range: 0..<segment.count, into: &output)
       }
-      var cursor = output.makeAppender(maximumAdditionalCount: 1)
-      cursor.appendToken(rawValue: special.id.rawValue)
-      output.commitAppender(count: 1)
+      output.withAppender(maximumAdditionalCount: 1) { cursor in
+        cursor.appendToken(rawValue: special.id.rawValue)
+      }
       position += special.bytes.count
       segmentStart = position
     }
@@ -227,229 +227,218 @@ public struct BPEEncoder: ~Copyable, TokenEncoding {
   ) throws(TokenizerError) {
     let batchBaseAddress = pretokenScratch.batchEntries
     let boundaryBaseAddress = pretokenScratch.boundaries
-    var cursor = output.makeAppender(maximumAdditionalCount: 4)
-    var cursorCapacity = output.capacity - output.count
     var position = 0
     while position < bytes.count {
       let batchInputStart = position
-      let fillProbeView = shortCache.probeView()
       let fillResult = try pretokenizer.fillPretokenBatch(
         in: bytes,
         startingAt: position,
         into: batchBaseAddress,
         boundaries: boundaryBaseAddress,
-        prefetchView: fillProbeView
+        prefetchCache: shortCache
       )
       let batchCount = fillResult.count
       position = fillResult.endPosition
 
-      let maximumBatchOutput = position - batchInputStart + 3
-      if maximumBatchOutput > cursorCapacity - cursor.count {
-        output.commitAppender(count: cursor.count)
-        cursor = output.makeAppender(maximumAdditionalCount: maximumBatchOutput)
-        cursorCapacity = output.capacity - output.count
-      }
-      var batchIndex = 0
-      var outputCount = cursor.count
-      var prefetchIndex = 0
-      while prefetchIndex < min(16, batchCount) {
-        fillProbeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: prefetchIndex).pointee.metadata,
-          locality: .level1
-        )
-        prefetchIndex += 1
-      }
-      var probeView = fillProbeView
-      batchIndex = 0
-      while batchIndex &+ 3 < batchCount {
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
-          locality: .level1
-        )
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 17).pointee.metadata,
-          locality: .level1
-        )
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 18).pointee.metadata,
-          locality: .level1
-        )
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 19).pointee.metadata,
-          locality: .level1
-        )
-        let firstEntry = batchBaseAddress.advanced(by: batchIndex).pointee
-        let secondEntry = batchBaseAddress.advanced(by: batchIndex &+ 1).pointee
-        let thirdEntry = batchBaseAddress.advanced(by: batchIndex &+ 2).pointee
-        let fourthEntry = batchBaseAddress.advanced(by: batchIndex &+ 3).pointee
-        let firstProbe = probeView.probePair(
-          low: firstEntry.keyLow,
-          high: firstEntry.keyHigh,
-          hash: firstEntry.metadata
-        )
-        let secondProbe = probeView.probePair(
-          low: secondEntry.keyLow,
-          high: secondEntry.keyHigh,
-          hash: secondEntry.metadata
-        )
-        let thirdProbe = probeView.probePair(
-          low: thirdEntry.keyLow,
-          high: thirdEntry.keyHigh,
-          hash: thirdEntry.metadata
-        )
-        let fourthProbe = probeView.probePair(
-          low: fourthEntry.keyLow,
-          high: fourthEntry.keyHigh,
-          hash: fourthEntry.metadata
-        )
-
-        let firstIsFast = Self.all(
-          firstProbe.foundMask != 0,
-          firstEntry.keyHigh != 0,
-          firstProbe.value.value & 0x80 == 0
-        )
-        let secondIsFast = Self.all(
-          secondProbe.foundMask != 0,
-          secondEntry.keyHigh != 0,
-          secondProbe.value.value & 0x80 == 0
-        )
-        let thirdIsFast = Self.all(
-          thirdProbe.foundMask != 0,
-          thirdEntry.keyHigh != 0,
-          thirdProbe.value.value & 0x80 == 0
-        )
-        let fourthIsFast = Self.all(
-          fourthProbe.foundMask != 0,
-          fourthEntry.keyHigh != 0,
-          fourthProbe.value.value & 0x80 == 0
-        )
-        guard Self.all(firstIsFast, secondIsFast, thirdIsFast, fourthIsFast) else {
-          break
+      let maximumBatchOutput = position - batchInputStart
+      output.withAppender(maximumAdditionalCount: maximumBatchOutput) { cursor in
+        var batchIndex = 0
+        var outputCount = cursor.count
+        var prefetchIndex = 0
+        while prefetchIndex < min(16, batchCount) {
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: prefetchIndex).pointee.metadata,
+            locality: .level1
+          )
+          prefetchIndex += 1
         }
+        batchIndex = 0
+        while batchIndex &+ 3 < batchCount {
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
+            locality: .level1
+          )
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 17).pointee.metadata,
+            locality: .level1
+          )
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 18).pointee.metadata,
+            locality: .level1
+          )
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 19).pointee.metadata,
+            locality: .level1
+          )
+          let firstEntry = batchBaseAddress.advanced(by: batchIndex).pointee
+          let secondEntry = batchBaseAddress.advanced(by: batchIndex &+ 1).pointee
+          let thirdEntry = batchBaseAddress.advanced(by: batchIndex &+ 2).pointee
+          let fourthEntry = batchBaseAddress.advanced(by: batchIndex &+ 3).pointee
+          let firstProbe = shortCache.probePair(
+            low: firstEntry.keyLow,
+            high: firstEntry.keyHigh,
+            hash: firstEntry.metadata
+          )
+          let secondProbe = shortCache.probePair(
+            low: secondEntry.keyLow,
+            high: secondEntry.keyHigh,
+            hash: secondEntry.metadata
+          )
+          let thirdProbe = shortCache.probePair(
+            low: thirdEntry.keyLow,
+            high: thirdEntry.keyHigh,
+            hash: thirdEntry.metadata
+          )
+          let fourthProbe = shortCache.probePair(
+            low: fourthEntry.keyLow,
+            high: fourthEntry.keyHigh,
+            hash: fourthEntry.metadata
+          )
 
-        cursor.writeInlineTokens(
-          value: firstProbe.value.value,
-          extensionValue: firstProbe.value.extensionValue,
-          at: outputCount
-        )
-        outputCount &+= firstProbe.value.tokenCount
-        cursor.writeInlineTokens(
-          value: secondProbe.value.value,
-          extensionValue: secondProbe.value.extensionValue,
-          at: outputCount
-        )
-        outputCount &+= secondProbe.value.tokenCount
-        cursor.writeInlineTokens(
-          value: thirdProbe.value.value,
-          extensionValue: thirdProbe.value.extensionValue,
-          at: outputCount
-        )
-        outputCount &+= thirdProbe.value.tokenCount
-        cursor.writeInlineTokens(
-          value: fourthProbe.value.value,
-          extensionValue: fourthProbe.value.extensionValue,
-          at: outputCount
-        )
-        outputCount &+= fourthProbe.value.tokenCount
-        batchIndex &+= 4
-      }
-      while batchIndex &+ 1 < batchCount {
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
-          locality: .level1
-        )
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 17).pointee.metadata,
-          locality: .level1
-        )
-        let firstEntry = batchBaseAddress.advanced(by: batchIndex).pointee
-        let secondEntry = batchBaseAddress.advanced(by: batchIndex &+ 1).pointee
-        let firstProbe = probeView.probePair(
-          low: firstEntry.keyLow,
-          high: firstEntry.keyHigh,
-          hash: firstEntry.metadata
-        )
-        let secondProbe = probeView.probePair(
-          low: secondEntry.keyLow,
-          high: secondEntry.keyHigh,
-          hash: secondEntry.metadata
-        )
+          let firstIsFast = Self.all(
+            firstProbe.foundMask != 0,
+            firstEntry.keyHigh != 0,
+            firstProbe.value.value & 0x80 == 0
+          )
+          let secondIsFast = Self.all(
+            secondProbe.foundMask != 0,
+            secondEntry.keyHigh != 0,
+            secondProbe.value.value & 0x80 == 0
+          )
+          let thirdIsFast = Self.all(
+            thirdProbe.foundMask != 0,
+            thirdEntry.keyHigh != 0,
+            thirdProbe.value.value & 0x80 == 0
+          )
+          let fourthIsFast = Self.all(
+            fourthProbe.foundMask != 0,
+            fourthEntry.keyHigh != 0,
+            fourthProbe.value.value & 0x80 == 0
+          )
+          guard Self.all(firstIsFast, secondIsFast, thirdIsFast, fourthIsFast) else {
+            break
+          }
 
-        let firstIsFast = Self.all(
-          firstProbe.foundMask != 0,
-          firstEntry.keyHigh != 0,
-          firstProbe.value.value & 0x80 == 0
-        )
-        cursor.writeInlineTokens(
-          value: firstProbe.value.value,
-          extensionValue: firstProbe.value.extensionValue,
-          at: outputCount
-        )
-        if firstIsFast {
+          cursor.writeInlineTokens(
+            value: firstProbe.value.value,
+            extensionValue: firstProbe.value.extensionValue,
+            at: outputCount
+          )
           outputCount &+= firstProbe.value.tokenCount
-        } else {
-          cursor.advance(by: outputCount - cursor.count)
-          encodeSlow(entry: firstEntry, probed: firstProbe, bytes: bytes, into: &cursor)
-          outputCount = cursor.count
-          probeView = shortCache.probeView()
-          batchIndex &+= 1
-          continue
-        }
-
-        let secondIsFast = Self.all(
-          secondProbe.foundMask != 0,
-          secondEntry.keyHigh != 0,
-          secondProbe.value.value & 0x80 == 0
-        )
-        cursor.writeInlineTokens(
-          value: secondProbe.value.value,
-          extensionValue: secondProbe.value.extensionValue,
-          at: outputCount
-        )
-        if secondIsFast {
+          cursor.writeInlineTokens(
+            value: secondProbe.value.value,
+            extensionValue: secondProbe.value.extensionValue,
+            at: outputCount
+          )
           outputCount &+= secondProbe.value.tokenCount
-        } else {
-          cursor.advance(by: outputCount - cursor.count)
-          encodeSlow(entry: secondEntry, probed: secondProbe, bytes: bytes, into: &cursor)
-          outputCount = cursor.count
-          probeView = shortCache.probeView()
+          cursor.writeInlineTokens(
+            value: thirdProbe.value.value,
+            extensionValue: thirdProbe.value.extensionValue,
+            at: outputCount
+          )
+          outputCount &+= thirdProbe.value.tokenCount
+          cursor.writeInlineTokens(
+            value: fourthProbe.value.value,
+            extensionValue: fourthProbe.value.extensionValue,
+            at: outputCount
+          )
+          outputCount &+= fourthProbe.value.tokenCount
+          batchIndex &+= 4
         }
-        batchIndex &+= 2
-      }
-      while batchIndex < batchCount {
-        probeView.prefetchForRead(
-          hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
-          locality: .level1
-        )
-        let entry = batchBaseAddress.advanced(by: batchIndex).pointee
-        let probed = probeView.probePair(
-          low: entry.keyLow,
-          high: entry.keyHigh,
-          hash: entry.metadata
-        )
-        let isFast = Self.all(
-          probed.foundMask != 0,
-          entry.keyHigh != 0,
-          probed.value.value & 0x80 == 0
-        )
-        cursor.writeInlineTokens(
-          value: probed.value.value,
-          extensionValue: probed.value.extensionValue,
-          at: outputCount
-        )
-        if isFast {
-          outputCount &+= probed.value.tokenCount
-        } else {
-          cursor.advance(by: outputCount - cursor.count)
-          encodeSlow(entry: entry, probed: probed, bytes: bytes, into: &cursor)
-          outputCount = cursor.count
-          probeView = shortCache.probeView()
+        while batchIndex &+ 1 < batchCount {
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
+            locality: .level1
+          )
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 17).pointee.metadata,
+            locality: .level1
+          )
+          let firstEntry = batchBaseAddress.advanced(by: batchIndex).pointee
+          let secondEntry = batchBaseAddress.advanced(by: batchIndex &+ 1).pointee
+          let firstProbe = shortCache.probePair(
+            low: firstEntry.keyLow,
+            high: firstEntry.keyHigh,
+            hash: firstEntry.metadata
+          )
+          let secondProbe = shortCache.probePair(
+            low: secondEntry.keyLow,
+            high: secondEntry.keyHigh,
+            hash: secondEntry.metadata
+          )
+
+          let firstIsFast = Self.all(
+            firstProbe.foundMask != 0,
+            firstEntry.keyHigh != 0,
+            firstProbe.value.value & 0x80 == 0
+          )
+          cursor.writeInlineTokens(
+            value: firstProbe.value.value,
+            extensionValue: firstProbe.value.extensionValue,
+            at: outputCount
+          )
+          if firstIsFast {
+            outputCount &+= firstProbe.value.tokenCount
+          } else {
+            cursor.advance(by: outputCount - cursor.count)
+            encodeSlow(entry: firstEntry, probed: firstProbe, bytes: bytes, into: &cursor)
+            outputCount = cursor.count
+            batchIndex &+= 1
+            continue
+          }
+
+          let secondIsFast = Self.all(
+            secondProbe.foundMask != 0,
+            secondEntry.keyHigh != 0,
+            secondProbe.value.value & 0x80 == 0
+          )
+          cursor.writeInlineTokens(
+            value: secondProbe.value.value,
+            extensionValue: secondProbe.value.extensionValue,
+            at: outputCount
+          )
+          if secondIsFast {
+            outputCount &+= secondProbe.value.tokenCount
+          } else {
+            cursor.advance(by: outputCount - cursor.count)
+            encodeSlow(entry: secondEntry, probed: secondProbe, bytes: bytes, into: &cursor)
+            outputCount = cursor.count
+          }
+          batchIndex &+= 2
         }
-        batchIndex &+= 1
+        while batchIndex < batchCount {
+          shortCache.prefetchForRead(
+            hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
+            locality: .level1
+          )
+          let entry = batchBaseAddress.advanced(by: batchIndex).pointee
+          let probed = shortCache.probePair(
+            low: entry.keyLow,
+            high: entry.keyHigh,
+            hash: entry.metadata
+          )
+          let isFast = Self.all(
+            probed.foundMask != 0,
+            entry.keyHigh != 0,
+            probed.value.value & 0x80 == 0
+          )
+          cursor.writeInlineTokens(
+            value: probed.value.value,
+            extensionValue: probed.value.extensionValue,
+            at: outputCount
+          )
+          if isFast {
+            outputCount &+= probed.value.tokenCount
+          } else {
+            cursor.advance(by: outputCount - cursor.count)
+            encodeSlow(entry: entry, probed: probed, bytes: bytes, into: &cursor)
+            outputCount = cursor.count
+          }
+          batchIndex &+= 1
+        }
+        cursor.advance(by: outputCount - cursor.count)
       }
-      cursor.advance(by: outputCount - cursor.count)
     }
-    output.commitAppender(count: cursor.count)
   }
 
   @inline(never)

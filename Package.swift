@@ -16,7 +16,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/1amageek/swift-vector-kernels.git",
-      branch: "main"
+      exact: "0.1.0"
     ),
   ],
   targets: [
@@ -25,7 +25,8 @@ let package = Package(
       dependencies: [
         .product(name: "VectorKernels", package: "swift-vector-kernels"),
         .product(name: "VectorKernelsNative", package: "swift-vector-kernels"),
-      ]
+      ],
+      swiftSettings: [.enableExperimentalFeature("Lifetimes")]
     ),
     .target(
       name: "GigaToken",
@@ -34,7 +35,10 @@ let package = Package(
     .executableTarget(
       name: "GigaTokenSmoke",
       dependencies: ["GigaTokenCore"],
-      path: "Tests/GigaTokenSmoke"
+      path: "Tests/GigaTokenSmoke",
+      linkerSettings: [
+        .linkedLibrary("c++abi", .when(platforms: [.wasi]))
+      ]
     ),
     .executableTarget(
       name: "GigaTokenBenchmark",

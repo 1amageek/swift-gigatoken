@@ -26,6 +26,36 @@ struct BPEModelTests {
     }
   }
 
+  @Test("Vocabulary construction reports structural failures exactly")
+  func vocabularyFailures() {
+    #expect(throws: TokenizerError.emptyVocabulary) {
+      _ = try BPEModel(rankOrderedTokens: [])
+    }
+
+    var duplicateVocabulary = (0...255).map { [UInt8($0)] }
+    duplicateVocabulary.append([0])
+    #expect(
+      throws: TokenizerError.duplicateToken(
+        bytes: [0],
+        first: TokenID(rawValue: 0),
+        duplicate: TokenID(rawValue: 256)
+      )
+    ) {
+      _ = try BPEModel(rankOrderedTokens: duplicateVocabulary)
+    }
+
+    var invalidMergeVocabulary = (0...255).map { [UInt8($0)] }
+    invalidMergeVocabulary.append(Array("abc".utf8))
+    #expect(
+      throws: TokenizerError.invalidMerge(
+        token: TokenID(rawValue: 256),
+        remainingSymbols: 3
+      )
+    ) {
+      _ = try BPEModel(rankOrderedTokens: invalidMergeVocabulary)
+    }
+  }
+
   @Test("Caller-owned output buffers append and can be reused")
   func reusableOutputBuffer() throws {
     var vocabulary = (0...255).map { [UInt8($0)] }
@@ -109,6 +139,18 @@ struct BPEModelTests {
         tokenOffsets: [0, 2, 1]
       )
     }
+    #expect(throws: TokenizerError.invalidTokenOffsets(index: 0)) {
+      _ = try BPEModel(
+        packedTokenStorage: [0x61],
+        tokenOffsets: [1, 1]
+      )
+    }
+    #expect(throws: TokenizerError.invalidTokenOffsets(index: 1)) {
+      _ = try BPEModel(
+        packedTokenStorage: [0x61, 0x62],
+        tokenOffsets: [0, 1]
+      )
+    }
     #expect(throws: TokenizerError.emptyToken(id: TokenID(rawValue: 1))) {
       _ = try BPEModel(
         packedTokenStorage: [0x61],
@@ -136,6 +178,12 @@ struct BPEModelTests {
     }
     #expect(encoded.copyTokens() == originalTokens)
 
+    var arrayOutput = [TokenID(rawValue: 7)]
+    #expect(throws: TokenizerError.invalidUTF8(offset: 256)) {
+      try encoder.encodeOrdinary(invalid, appendingTo: &arrayOutput)
+    }
+    #expect(arrayOutput == [TokenID(rawValue: 7)])
+
     var decoded = [UInt8(0x7A)]
     let tokens = [TokenID(rawValue: 97), TokenID(rawValue: 999)]
     #expect(throws: TokenizerError.unknownToken(id: TokenID(rawValue: 999))) {
@@ -144,6 +192,29 @@ struct BPEModelTests {
       }
     }
     #expect(decoded == [0x7A])
+  }
+
+  @Test("Speculative inline stores retain exact logical tails")
+  func exactInlineStoreTails() {
+    for tokenCount in 1...3 {
+      var output = TokenBuffer(minimumCapacity: tokenCount)
+      output.withAppender(maximumAdditionalCount: tokenCount) { cursor in
+        var value = UInt64(tokenCount) | (UInt64(11) << 8)
+        var extensionValue: UInt64 = 0
+        if tokenCount >= 2 {
+          value |= UInt64(22) << 32
+        }
+        if tokenCount >= 3 {
+          extensionValue = UInt64(33)
+        }
+        cursor.writeInlineTokens(value: value, extensionValue: extensionValue)
+        cursor.advance(by: tokenCount)
+      }
+      let expected = [UInt32(11), 22, 33].prefix(tokenCount).map(TokenID.init(rawValue:))
+      #expect(output.copyTokens() == expected)
+      #expect(output.count == tokenCount)
+      #expect(output.capacity >= tokenCount + 3)
+    }
   }
 }
 

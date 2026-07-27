@@ -1,4 +1,5 @@
 import VectorKernels
+import VectorKernelsNative
 
 struct PackedTokenValue: Sendable {
   private static let spillFlag: UInt64 = 0x80
@@ -67,6 +68,9 @@ private struct ShortPretokenCacheBucket: ~Copyable {
 
 @usableFromInline
 struct ShortPretokenCache: ~Copyable {
+  // This cache exclusively owns one raw allocation bound to `capacity / 2`
+  // initialized buckets. Probe and prefetch pointers are derived and consumed
+  // within each call; none escape across grow, exactly-once deallocation, or mutation.
   private var allocation: UnsafeMutableRawPointer
   private var buckets: UnsafeMutablePointer<ShortPretokenCacheBucket>
   private var capacity: Int
@@ -159,8 +163,46 @@ struct ShortPretokenCache: ~Copyable {
   }
 
   @inline(__always)
-  func probeView() -> ShortPretokenProbeView {
-    ShortPretokenProbeView(baseAddress: buckets, bucketMask: mask >> 1)
+  func prefetchForRead(
+    hash: UInt64,
+    locality: CachePrefetchLocality
+  ) {
+    let bucketIndex = (Int(truncatingIfNeeded: hash) >> 1) & (mask >> 1)
+    unsafe CacheLinePrefetch.read(
+      UnsafeRawPointer(buckets.advanced(by: bucketIndex)),
+      locality: locality
+    )
+  }
+
+  @inline(__always)
+  func probePair(
+    low: UInt64,
+    high: UInt64,
+    hash: UInt64
+  ) -> ShortPretokenProbeResult {
+    let bucketIndex = (Int(truncatingIfNeeded: hash) >> 1) & (mask >> 1)
+    let bucket = buckets.advanced(by: bucketIndex)
+    let keys = bucket.pointee.keys
+    let firstMask = Self.zeroMask((keys[0] ^ low) | (keys[1] ^ high))
+    let secondMask = Self.zeroMask((keys[2] ^ low) | (keys[3] ^ high))
+    let packedValues = bucket.pointee.packedValues
+    let selectedValue =
+      (packedValues[0] & firstMask) | (packedValues[2] & ~firstMask)
+    let selectedExtension =
+      (packedValues[1] & firstMask) | (packedValues[3] & ~firstMask)
+    return ShortPretokenProbeResult(
+      value: PackedTokenValue(
+        value: selectedValue,
+        extensionValue: selectedExtension
+      ),
+      foundMask: firstMask | secondMask
+    )
+  }
+
+  @_transparent
+  static func zeroMask(_ value: UInt64) -> UInt64 {
+    let isNonzero = (value | (UInt64(0) &- value)) &>> 63
+    return UInt64(0) &- (isNonzero ^ 1)
   }
 
   mutating func insert(
@@ -310,61 +352,4 @@ struct ShortPretokenCache: ~Copyable {
 struct ShortPretokenProbeResult {
   let value: PackedTokenValue
   let foundMask: UInt64
-}
-
-struct ShortPretokenProbeView {
-  private let baseAddress: UnsafePointer<ShortPretokenCacheBucket>
-  private let bucketMask: Int
-
-  @inline(__always)
-  fileprivate init(
-    baseAddress: UnsafePointer<ShortPretokenCacheBucket>,
-    bucketMask: Int
-  ) {
-    self.baseAddress = baseAddress
-    self.bucketMask = bucketMask
-  }
-
-  @inline(__always)
-  func prefetchForRead(
-    hash: UInt64,
-    locality: CachePrefetchLocality
-  ) {
-    let bucketIndex = (Int(truncatingIfNeeded: hash) >> 1) & bucketMask
-    unsafe CacheLinePrefetch.read(
-      UnsafeRawPointer(baseAddress.advanced(by: bucketIndex)),
-      locality: locality
-    )
-  }
-
-  @inline(__always)
-  func probePair(
-    low: UInt64,
-    high: UInt64,
-    hash: UInt64
-  ) -> ShortPretokenProbeResult {
-    let bucketIndex = (Int(truncatingIfNeeded: hash) >> 1) & bucketMask
-    let bucket = baseAddress.advanced(by: bucketIndex)
-    let keys = bucket.pointee.keys
-    let firstMask = Self.zeroMask((keys[0] ^ low) | (keys[1] ^ high))
-    let secondMask = Self.zeroMask((keys[2] ^ low) | (keys[3] ^ high))
-    let packedValues = bucket.pointee.packedValues
-    let selectedValue =
-      (packedValues[0] & firstMask) | (packedValues[2] & ~firstMask)
-    let selectedExtension =
-      (packedValues[1] & firstMask) | (packedValues[3] & ~firstMask)
-    return ShortPretokenProbeResult(
-      value: PackedTokenValue(
-        value: selectedValue,
-        extensionValue: selectedExtension
-      ),
-      foundMask: firstMask | secondMask
-    )
-  }
-
-  @_transparent
-  static func zeroMask(_ value: UInt64) -> UInt64 {
-    let isNonzero = (value | (UInt64(0) &- value)) &>> 63
-    return UInt64(0) &- (isNonzero ^ 1)
-  }
 }

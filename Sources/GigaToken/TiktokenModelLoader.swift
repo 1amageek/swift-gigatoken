@@ -38,15 +38,16 @@ public struct TiktokenModelLoader: TiktokenModelLoading, Sendable {
         if lineEnd > lineStart, bytes[lineEnd - 1] == 0x0D {
           lineEnd -= 1
         }
-        if lineStart < lineEnd {
-          try parseLine(
-            bytes: bytes,
-            range: lineStart..<lineEnd,
-            lineNumber: lineNumber,
-            tokenStorage: &tokenStorage,
-            tokenOffsets: &tokenOffsets
-          )
+        guard lineStart < lineEnd else {
+          throw TokenizerError.invalidModelLine(line: lineNumber)
         }
+        try parseLine(
+          bytes: bytes,
+          range: lineStart..<lineEnd,
+          lineNumber: lineNumber,
+          tokenStorage: &tokenStorage,
+          tokenOffsets: &tokenOffsets
+        )
         if position < bytes.count {
           position += 1
         }

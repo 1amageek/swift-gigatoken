@@ -35,6 +35,7 @@ wasm_output="$(node --no-warnings "$root_directory/Scripts/run-wasi.mjs" \
 )"
 echo "$wasm_output"
 grep -Fq "execution-mode: standard-wasm" <<< "$wasm_output"
+grep -Fq "concurrency-smoke: passed" <<< "$wasm_output"
 grep -Fq "gigatoken-smoke: passed" <<< "$wasm_output"
 if grep -Fq "data race detected" <<< "$wasm_output"; then
   echo "standard-wasm: dynamic isolation check reported a data race" >&2
@@ -58,6 +59,7 @@ embedded_output="$(node --no-warnings "$root_directory/Scripts/run-wasi.mjs" \
 )"
 echo "$embedded_output"
 grep -Fq "execution-mode: embedded-wasm" <<< "$embedded_output"
+grep -Fq "concurrency-smoke: passed" <<< "$embedded_output"
 grep -Fq "gigatoken-smoke: passed" <<< "$embedded_output"
 if grep -Fq "data race detected" <<< "$embedded_output"; then
   echo "wasm-embedded: dynamic isolation check reported a data race" >&2
