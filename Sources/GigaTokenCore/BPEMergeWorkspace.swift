@@ -38,20 +38,6 @@ struct BPEMergeWorkspace: Sendable {
     return merge(pairRanks: pairRanks)
   }
 
-  mutating func encode(
-    bytes: borrowing [UInt8],
-    byteTokenIDs: borrowing [UInt32],
-    pairRanks: borrowing PairRankTable
-  ) -> Int {
-    symbols.removeAll(keepingCapacity: true)
-    var index = 0
-    while index < bytes.count {
-      symbols.append(byteTokenIDs[Int(bytes[index])])
-      index += 1
-    }
-    return merge(pairRanks: pairRanks)
-  }
-
   private mutating func merge(pairRanks: borrowing PairRankTable) -> Int {
     let count = symbols.count
     guard count > 1 else {

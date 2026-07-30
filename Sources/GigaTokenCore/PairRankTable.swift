@@ -21,12 +21,6 @@ struct PairRankTable: Sendable {
   }
 
   @inline(__always)
-  func mergedToken(left: TokenID, right: TokenID) -> TokenID? {
-    let value = mergedTokenRaw(left: left.rawValue, right: right.rawValue)
-    return value == UInt32.max ? nil : TokenID(rawValue: value)
-  }
-
-  @inline(__always)
   func mergedTokenRaw(left: UInt32, right: UInt32) -> UInt32 {
     let key = Self.key(left: left, right: right)
     var slot = Int(truncatingIfNeeded: Self.hash(key)) & mask
