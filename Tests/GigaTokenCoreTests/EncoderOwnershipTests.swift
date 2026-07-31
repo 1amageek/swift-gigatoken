@@ -4,6 +4,18 @@ import Testing
 
 @Suite("Encoder ownership")
 struct EncoderOwnershipTests {
+  @Test("Fallback groups do not duplicate short-cache entries")
+  func fallbackGroupCacheIdentity() throws {
+    let model = try BPEModel(rankOrderedTokens: (0...255).map { [UInt8($0)] })
+    var encoder = BPEEncoder(model: model)
+    let initialEntryCount = encoder.storageMetrics.shortCacheEntryCount
+
+    let tokens = try encoder.encodeOrdinary(Array("abcd!abcd!abcd!abcd!".utf8))
+
+    #expect(tokens.map(\.rawValue) == Array("abcd!abcd!abcd!abcd!".utf8).map(UInt32.init))
+    #expect(encoder.storageMetrics.shortCacheEntryCount == initialEntryCount + 1)
+  }
+
   @Test("Independent encoders share an immutable model across tasks")
   func independentEncoders() async throws {
     var vocabulary = (0...255).map { [UInt8($0)] }

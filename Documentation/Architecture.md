@@ -102,8 +102,9 @@ silently accepted when a check differs.
 ## Portability contract
 
 The fixed baseline is Swift
-`swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a` with the matching standard and
-Embedded Wasm SDKs. Validation logs the exact toolchain, SDK identifiers, and
+`swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-23-a` at compiler commit
+`ef761e567dc94ee`, with the matching standard and Embedded Wasm SDKs.
+Validation logs the exact toolchain, compiler commit, SDK identifiers, and
 `wasm32-unknown-wasip1` target triple before compiling.
 
 The portable path does not use Foundation, filesystem APIs, OS threads, memory

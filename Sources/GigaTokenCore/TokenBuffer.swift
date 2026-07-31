@@ -189,6 +189,77 @@ struct TokenOutputCursor: ~Copyable, ~Escapable {
   }
 
   @_transparent
+  @unsafe
+  mutating func writeUncheckedInlineTokenGroup(
+    values: SIMD4<UInt64>,
+    extensionValues: SIMD4<UInt64>,
+    at outputOffset: Int
+  ) -> Int {
+    // The caller proves that all four values are inline packed tokens, every
+    // offset sum fits in Int, and three initialized guard lanes may follow the
+    // logical output. TokenBuffer exclusively owns initialized UInt32 storage;
+    // MutableSpan keeps this borrow exclusive, each raw pointer stays inside
+    // its synchronous closure, and no pointer or view crosses a Sendable boundary.
+    let firstCount = Int(values[0] & 0x7F)
+    let secondCount = Int(values[1] & 0x7F)
+    let thirdCount = Int(values[2] & 0x7F)
+    let fourthCount = Int(values[3] & 0x7F)
+    let secondOffset = outputOffset &+ firstCount
+    let thirdOffset = secondOffset &+ secondCount
+    let fourthOffset = thirdOffset &+ thirdCount
+    let endOffset = fourthOffset &+ fourthCount
+    assert(outputOffset >= 0)
+    assert((1...4).contains(firstCount))
+    assert((1...4).contains(secondCount))
+    assert((1...4).contains(thirdCount))
+    assert((1...4).contains(fourthCount))
+    assert(fourthOffset <= storage.count - 4)
+    assert(endOffset <= storage.count)
+
+    let firstPair =
+      ((values[0] >> 8) & 0x00FF_FFFF) | (values[0] & 0xFFFF_FFFF_0000_0000)
+    let secondPair =
+      ((values[1] >> 8) & 0x00FF_FFFF) | (values[1] & 0xFFFF_FFFF_0000_0000)
+    let thirdPair =
+      ((values[2] >> 8) & 0x00FF_FFFF) | (values[2] & 0xFFFF_FFFF_0000_0000)
+    let fourthPair =
+      ((values[3] >> 8) & 0x00FF_FFFF) | (values[3] & 0xFFFF_FFFF_0000_0000)
+    let firstLanes = SIMD2(firstPair, extensionValues[0])
+    let secondLanes = SIMD2(secondPair, extensionValues[1])
+    let thirdLanes = SIMD2(thirdPair, extensionValues[2])
+    let fourthLanes = SIMD2(fourthPair, extensionValues[3])
+
+    storage.withUnsafeMutableBufferPointer { destination in
+      let baseAddress = destination.baseAddress!
+      withUnsafeBytes(of: firstLanes) { bytes in
+        UnsafeMutableRawPointer(baseAddress.advanced(by: outputOffset)).copyMemory(
+          from: bytes.baseAddress!,
+          byteCount: MemoryLayout<SIMD2<UInt64>>.size
+        )
+      }
+      withUnsafeBytes(of: secondLanes) { bytes in
+        UnsafeMutableRawPointer(baseAddress.advanced(by: secondOffset)).copyMemory(
+          from: bytes.baseAddress!,
+          byteCount: MemoryLayout<SIMD2<UInt64>>.size
+        )
+      }
+      withUnsafeBytes(of: thirdLanes) { bytes in
+        UnsafeMutableRawPointer(baseAddress.advanced(by: thirdOffset)).copyMemory(
+          from: bytes.baseAddress!,
+          byteCount: MemoryLayout<SIMD2<UInt64>>.size
+        )
+      }
+      withUnsafeBytes(of: fourthLanes) { bytes in
+        UnsafeMutableRawPointer(baseAddress.advanced(by: fourthOffset)).copyMemory(
+          from: bytes.baseAddress!,
+          byteCount: MemoryLayout<SIMD2<UInt64>>.size
+        )
+      }
+    }
+    return endOffset
+  }
+
+  @_transparent
   mutating func advance(by additionalCount: Int) {
     precondition(additionalCount >= 0)
     precondition(count <= storage.count - additionalCount)

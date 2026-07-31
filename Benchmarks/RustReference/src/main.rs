@@ -1,4 +1,5 @@
 use gigatoken_rs::load_tokenizer::tiktoken::load_tiktoken;
+use gigatoken_rs::pretokenize::FastR50kPretokenizer;
 use std::env;
 use std::fs;
 use std::hint::black_box;
@@ -14,7 +15,7 @@ fn main() {
 
     let mut output = Vec::new();
     let cold_start = Instant::now();
-    tokenizer.encode_with_added_tokens_flat(&input, &mut output);
+    tokenizer.memoized_encode_flat(FastR50kPretokenizer::new(&input), &mut output);
     black_box(&output);
     let cold_seconds = cold_start.elapsed().as_secs_f64();
 
@@ -22,7 +23,7 @@ fn main() {
     for _ in 0..options.iterations {
         output.clear();
         let start = Instant::now();
-        tokenizer.encode_with_added_tokens_flat(&input, &mut output);
+        tokenizer.memoized_encode_flat(FastR50kPretokenizer::new(&input), &mut output);
         black_box(&output);
         warm_durations.push(start.elapsed().as_secs_f64());
     }

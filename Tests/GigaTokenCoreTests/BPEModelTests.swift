@@ -215,6 +215,25 @@ struct BPEModelTests {
       #expect(output.count == tokenCount)
       #expect(output.capacity >= tokenCount + 3)
     }
+
+    var groupedOutput = TokenBuffer(minimumCapacity: 10)
+    groupedOutput.withAppender(maximumAdditionalCount: 10) { cursor in
+      let endOffset = unsafe cursor.writeUncheckedInlineTokenGroup(
+        values: SIMD4(
+          1 | (11 << 8),
+          2 | (21 << 8) | (22 << 32),
+          3 | (31 << 8) | (32 << 32),
+          4 | (41 << 8) | (42 << 32)
+        ),
+        extensionValues: SIMD4(0, 0, 33, 43 | (44 << 32)),
+        at: 0
+      )
+      cursor.advance(by: endOffset)
+    }
+    #expect(
+      groupedOutput.withUnsafeRawTokenIDs { Array($0) }
+        == [11, 21, 22, 31, 32, 33, 41, 42, 43, 44]
+    )
   }
 }
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-readonly SWIFT_SNAPSHOT="swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a"
-readonly SWIFT_TOOLCHAIN_IDENTIFIER="org.swift.64202607171a"
+readonly SWIFT_SNAPSHOT="swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-23-a"
+readonly SWIFT_TOOLCHAIN_IDENTIFIER="org.swift.64202607231a"
+readonly SWIFT_COMPILER_COMMIT="ef761e567dc94ee"
 readonly SWIFT_WASM_SDK="${SWIFT_SNAPSHOT}_wasm"
 readonly SWIFT_EMBEDDED_WASM_SDK="${SWIFT_SNAPSHOT}_wasm-embedded"
 readonly SWIFT_WASM_TARGET_TRIPLE="wasm32-unknown-wasip1"
@@ -67,6 +68,11 @@ verify_swift64_environment() {
     echo "$version" >&2
     exit 1
   fi
+  if [[ "$version" != *"Swift $SWIFT_COMPILER_COMMIT"* ]]; then
+    echo "Pinned toolchain does not report the expected compiler commit: $SWIFT_COMPILER_COMMIT" >&2
+    echo "$version" >&2
+    exit 1
+  fi
 
   local installed_sdks
   installed_sdks="$(swift64 sdk list)"
@@ -87,6 +93,7 @@ verify_swift64_environment() {
 
   echo "swift-toolchain-id: $SWIFT_TOOLCHAIN_IDENTIFIER"
   echo "swift-toolchain-snapshot: $SWIFT_SNAPSHOT"
+  echo "swift-compiler-commit: $SWIFT_COMPILER_COMMIT"
   echo "swift-toolchain-path: $SWIFT_EXECUTABLE"
   echo "swift-llvm-tools: $LLVM_NM $LLVM_OBJDUMP"
   echo "$version"

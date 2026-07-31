@@ -5,7 +5,7 @@ WebAssembly, and Embedded Swift, plus compile-time-gated native kernels where
 the target contract guarantees the required instructions.
 
 On an Apple M4 Max, the single-threaded warm `r50k_base` path reaches
-**670.50 MB/s** while producing exactly the same token IDs as the reference
+**988.76 MB/s** while producing exactly the same token IDs as the reference
 implementation.
 
 ## Acknowledgements
@@ -24,13 +24,15 @@ branching, and cache misses are measurable costs.
 
 | 16 MiB `enwik8`, warm median | Throughput | Token IDs | Checksum |
 |---|---:|---:|---:|
-| `swift-gigatoken` | **670.50 MB/s** | 4,929,342 | `9bb0d84c9a7a327d` |
-| Original Rust [`gigatoken`](https://github.com/marcelroed/gigatoken) 0.9.0 by Marcel Roed | 652.36 MB/s | 4,929,342 | `9bb0d84c9a7a327d` |
+| `swift-gigatoken` | **988.76 MB/s** | 4,929,342 | `9bb0d84c9a7a327d` |
+| Original Rust [`gigatoken`](https://github.com/marcelroed/gigatoken) 0.9.0 by Marcel Roed | 975.45 MB/s | 4,929,342 | `9bb0d84c9a7a327d` |
 
-That result is **1.028x the throughput of the original Rust implementation**
+That result is **1.014x the throughput of the original Rust implementation**
 on the same Apple M4 Max, model, input bytes, and single-threaded benchmark
-path. The strict interleaved gate passed four consecutive times at 1.0128x,
-1.0177x, 1.1259x, and 1.0278x, with full token identity on every run.
+path. The strict interleaved gate rejects concurrent compiler activity and
+more than 5% paired common-mode drift instead of treating a busy host as an
+implementation regression. Every process in the accepted run preserved the
+full token identity.
 
 These are measured results on one machine rather than a universal throughput
 guarantee. See [the complete benchmark methodology](Documentation/Benchmark.md)
@@ -45,10 +47,10 @@ token IDs.
 
 | Public encode API, seven-run warm median | Throughput | Swift relative throughput |
 |---|---:|---:|
-| `swift-gigatoken` | **1,078.37 MB/s** | 1.00x |
-| Original Rust [`gigatoken`](https://github.com/marcelroed/gigatoken) 0.9.0 | 1,023.48 MB/s | 1.05x |
-| OpenAI `tiktoken` 0.12.0 | 15.81 MB/s | **68.21x** |
-| Hugging Face `tokenizers` 0.22.1 | 2.33 MB/s | **461.85x** |
+| `swift-gigatoken` | **667.27 MB/s** | 1.00x |
+| Original Rust [`gigatoken`](https://github.com/marcelroed/gigatoken) 0.9.0 | 603.56 MB/s | 1.11x |
+| OpenAI `tiktoken` 0.12.0 | 9.29 MB/s | **71.82x** |
+| Hugging Face `tokenizers` 0.22.1 | 1.30 MB/s | **514.88x** |
 
 This is an end-to-end comparison of public encode APIs, including each API's
 required output materialization. It is not a claim that the underlying
@@ -68,7 +70,7 @@ four-implementation comparison was recorded in a separate low-load run.
 | Two-instruction cache hashing | Emits two ARM `crc32x` instructions on supported ARM64 targets. |
 | Cache-aware lookup | Uses aligned two-slot buckets, low native load factor, branchless home-pair probes, and explicit L2/L1 prefetch. |
 | Reused working storage | Reuses token arenas, merge scratch, pretoken batches, caches, and output capacity across calls. |
-| Batched output | Uses a closure-scoped `MutableSpan` cursor and unrolls the common four-entry fast path. |
+| Batched output | Uses one segment-wide, closure-scoped `MutableSpan` cursor and a bounds-proven four-entry store. |
 | Verified machine code | Release checks reject missing NEON, CRC32, or prefetch instructions and unexpected hot-loop calls. |
 
 ## Features
@@ -99,9 +101,10 @@ standard and Embedded Wasm SDKs:
 
 | Component | Identifier |
 |---|---|
-| Toolchain | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a` |
-| Standard Wasm SDK | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a_wasm` |
-| Embedded Wasm SDK | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-17-a_wasm-embedded` |
+| Toolchain | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-23-a` |
+| Compiler commit | `ef761e567dc94ee` |
+| Standard Wasm SDK | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-23-a_wasm` |
+| Embedded Wasm SDK | `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-07-23-a_wasm-embedded` |
 
 ```bash
 source Scripts/swift-toolchain.sh

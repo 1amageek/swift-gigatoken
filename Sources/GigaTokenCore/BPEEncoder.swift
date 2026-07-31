@@ -227,22 +227,20 @@ public struct BPEEncoder: ~Copyable, TokenEncoding {
   ) throws(TokenizerError) {
     let batchBaseAddress = pretokenScratch.batchEntries
     let boundaryBaseAddress = pretokenScratch.boundaries
-    var position = 0
-    while position < bytes.count {
-      let batchInputStart = position
-      let fillResult = try pretokenizer.fillPretokenBatch(
-        in: bytes,
-        startingAt: position,
-        into: batchBaseAddress,
-        boundaries: boundaryBaseAddress,
-        prefetchCache: shortCache
-      )
-      let batchCount = fillResult.count
-      position = fillResult.endPosition
+    try output.withAppender(maximumAdditionalCount: bytes.count) {
+      cursor throws(TokenizerError) in
+      var position = 0
+      while position < bytes.count {
+        let fillResult = try pretokenizer.fillPretokenBatch(
+          in: bytes,
+          startingAt: position,
+          into: batchBaseAddress,
+          boundaries: boundaryBaseAddress,
+          prefetchCache: shortCache
+        )
+        let batchCount = fillResult.count
+        position = fillResult.endPosition
 
-      let maximumBatchOutput = position - batchInputStart
-      output.withAppender(maximumAdditionalCount: maximumBatchOutput) { cursor in
-        var batchIndex = 0
         var outputCount = cursor.count
         var prefetchIndex = 0
         while prefetchIndex < min(16, batchCount) {
@@ -252,7 +250,7 @@ public struct BPEEncoder: ~Copyable, TokenEncoding {
           )
           prefetchIndex += 1
         }
-        batchIndex = 0
+        var batchIndex = 0
         while batchIndex &+ 3 < batchCount {
           shortCache.prefetchForRead(
             hash: batchBaseAddress.advanced(by: batchIndex &+ 16).pointee.metadata,
@@ -316,33 +314,36 @@ public struct BPEEncoder: ~Copyable, TokenEncoding {
             fourthProbe.value.value & 0x80 == 0
           )
           guard Self.all(firstIsFast, secondIsFast, thirdIsFast, fourthIsFast) else {
-            break
+            cursor.advance(by: outputCount - cursor.count)
+            appendFallbackGroup(
+              entries: batchBaseAddress.advanced(by: batchIndex),
+              bytes: bytes,
+              into: &cursor
+            )
+            outputCount = cursor.count
+            batchIndex &+= 4
+            continue
           }
 
-          cursor.writeInlineTokens(
-            value: firstProbe.value.value,
-            extensionValue: firstProbe.value.extensionValue,
+          // Four successful inline cache probes each represent a nonempty
+          // input span. The segment-wide appender reserves one output lane per
+          // input byte plus three initialized guard lanes, so all offset sums
+          // fit and the fourth fixed-width store remains inside live storage.
+          outputCount = unsafe cursor.writeUncheckedInlineTokenGroup(
+            values: SIMD4(
+              firstProbe.value.value,
+              secondProbe.value.value,
+              thirdProbe.value.value,
+              fourthProbe.value.value
+            ),
+            extensionValues: SIMD4(
+              firstProbe.value.extensionValue,
+              secondProbe.value.extensionValue,
+              thirdProbe.value.extensionValue,
+              fourthProbe.value.extensionValue
+            ),
             at: outputCount
           )
-          outputCount &+= firstProbe.value.tokenCount
-          cursor.writeInlineTokens(
-            value: secondProbe.value.value,
-            extensionValue: secondProbe.value.extensionValue,
-            at: outputCount
-          )
-          outputCount &+= secondProbe.value.tokenCount
-          cursor.writeInlineTokens(
-            value: thirdProbe.value.value,
-            extensionValue: thirdProbe.value.extensionValue,
-            at: outputCount
-          )
-          outputCount &+= thirdProbe.value.tokenCount
-          cursor.writeInlineTokens(
-            value: fourthProbe.value.value,
-            extensionValue: fourthProbe.value.extensionValue,
-            at: outputCount
-          )
-          outputCount &+= fourthProbe.value.tokenCount
           batchIndex &+= 4
         }
         while batchIndex &+ 1 < batchCount {
@@ -438,6 +439,31 @@ public struct BPEEncoder: ~Copyable, TokenEncoding {
         }
         cursor.advance(by: outputCount - cursor.count)
       }
+    }
+  }
+
+  @inline(never)
+  private mutating func appendFallbackGroup(
+    entries: UnsafePointer<PretokenBatchEntry>,
+    bytes: UnsafeBufferPointer<UInt8>,
+    into cursor: inout TokenOutputCursor
+  ) {
+    // The encoder owns four initialized entries for this synchronous call.
+    // The pointer does not escape, and this helper does not mutate scratch storage.
+    var index = 0
+    while index < 4 {
+      let entry = entries.advanced(by: index).pointee
+      let probed = shortCache.probePair(
+        low: entry.keyLow,
+        high: entry.keyHigh,
+        hash: entry.metadata
+      )
+      if probed.foundMask != 0, entry.keyHigh != 0 {
+        probed.value.appendTokens(arena: tokenArena, to: &cursor)
+      } else {
+        encodeSlow(entry: entry, probed: probed, bytes: bytes, into: &cursor)
+      }
+      index &+= 1
     }
   }
 
